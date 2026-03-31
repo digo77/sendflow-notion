@@ -1,0 +1,19 @@
+{
+  "webinarios": [
+    {
+      "id": "default",
+      "nome_cliente": "Chef Aureo",
+      "ativo": true,
+      "nome_base": "Cookie Sandwich",
+      "numero_admin": "13059304118",
+      "dia_semana": 2,
+      "hora_webinario": "19:00",
+      "hora_corte": "08:00",
+      "switchy_link_id": "webinar-sandwich",
+      "switchy_domain": "link.chefaureomagalhaes.com",
+      "descricao_grupo": "*Bem-vinda(o) ao grupo do Cookie Sandwich* 🍪\n\nNa *terça-feira às 19h* a gente se encontra pra uma aula que vai mudar como você olha pra esse produto.\n\nMas antes, deixei uma aula de presente pra você ir chegando no clima certo 👇🏻\n\nhttps://chefaureomagalhaes.com/pages/sandwich/presente-cookieshot.html\n\nNos vemos na terça. 🙌\n_Chef Áureo_",
+      "foto_grupo_url": "https://res.cloudinary.com/dkjohrieh/image/upload/f_auto,q_auto,c_fill,w_800,h_800,g_auto/chefaureo/imagem_chef-sandwich",
+      "mensagem_wpp": "✅ Grupo criado!\n*{nome_grupo}*\n📅 {data_webinario}\n🔗 {link_grupo}"
+    }
+  ]
+}
