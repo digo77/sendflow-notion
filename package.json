@@ -1,0 +1,19 @@
+{
+  "name": "sendflow-notion",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Automação Notion + Sendflow com confirmação via WhatsApp",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "check-env": "node check-env.js",
+    "backup": "node -e \"import('./backup.js').then(m => m.runBackup())\""
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.0"
+  }
+}

@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sendflow-Notion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface2: #F3F4F6;
+  --border: #E5E7EB;
+  --text: #111827;
+  --text2: #6B7280;
+  --accent: #2563EB;
+  --accent-light: #EFF6FF;
+  --good: #16A34A;
+  --good-bg: #F0FDF4;
+  --warn: #D97706;
+  --warn-bg: #FFFBEB;
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+  --purple: #7C3AED;
+  --purple-bg: #F5F3FF;
+  --sidebar-w: 220px;
+  --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 10;
+}
+.sidebar-logo {
+  padding: 0 20px 24px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sidebar-logo .dot {
+  width: 10px; height: 10px;
+  background: var(--good);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; }
+  50% { opacity:.4; }
+}
+.nav-item {
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all .15s;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active {
+  color: var(--accent);
+  background: var(--accent-light);
+  border-left-color: var(--accent);
+}
+.nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-footer .status-line {
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-footer .status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+}
+
+/* ─── Main ─── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 28px 32px;
+  max-width: 1100px;
+}
+.page-title {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ─── Cards ─── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 28px; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+.card-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; font-weight: 600; margin-bottom: 6px; }
+.card-value { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 500; }
+.card-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+/* ─── Tables ─── */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.table-header h3 { font-size: 15px; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text2);
+  font-weight: 600;
+  padding: 10px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+
+/* ─── Status badges ─── */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
+.badge-pendente { background: var(--accent-light); color: var(--accent); }
+.badge-aguardando_ok { background: var(--warn-bg); color: var(--warn); }
+.badge-executado { background: var(--good-bg); color: var(--good); }
+.badge-cancelado { background: var(--surface2); color: var(--text2); }
+.badge-erro { background: var(--danger-bg); color: var(--danger); }
+.badge-ativa { background: var(--good-bg); color: var(--good); }
+.badge-pausada { background: var(--warn-bg); color: var(--warn); }
+.badge-encerrada { background: var(--surface2); color: var(--text2); }
+.badge-criado { background: var(--good-bg); color: var(--good); }
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: inherit;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-approve { background: var(--good); color: #fff; }
+.btn-approve:hover { background: #15803d; }
+.btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #fca5a5; }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-reject { background: var(--danger); color: #fff; }
+.btn-reject:hover { background: #b91c1c; }
+.approval-card {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.approval-card:last-child { border-bottom: none; }
+.approval-info { flex: 1; }
+.approval-info .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.approval-info .detail { font-size: 12px; color: var(--text2); }
+.approval-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ─── Modal ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 28px;
+  width: 480px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15);
+}
+.modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border .15s;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(--accent); }
+.form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ─── Logs ─── */
+.log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  align-items: flex-start;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text2);
+  white-space: nowrap;
+  min-width: 130px;
+}
+.log-detail { color: var(--text2); flex: 1; word-break: break-word; }
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--text);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 200;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ─── Tabs (hidden by default) ─── */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ─── Empty state ─── */
+.empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text2);
+  font-size: 14px;
+}
+
+/* ─── Loading ─── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 10px;
+  color: var(--text2);
+  font-size: 13px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; padding: 16px 0; }
+  .sidebar-logo span, .nav-item span { display: none; }
+  .sidebar-logo { justify-content: center; padding: 0 0 16px; }
+  .nav-item { justify-content: center; padding: 12px; border-left: none; }
+  .sidebar-footer { display: none; }
+  .main { margin-left: 60px; padding: 20px 16px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="dot"></div>
+    <span>Sendflow</span>
+  </div>
+  <div class="nav-item active" data-tab="visao-geral">
+    <div class="icon">📊</div>
+    <span>Visão Geral</span>
+  </div>
+  <div class="nav-item" data-tab="agendamentos">
+    <div class="icon">📅</div>
+    <span>Agendamentos</span>
+  </div>
+  <div class="nav-item" data-tab="campanhas">
+    <div class="icon">📣</div>
+    <span>Campanhas</span>
+  </div>
+  <div class="nav-item" data-tab="logs">
+    <div class="icon">📋</div>
+    <span>Logs</span>
+  </div>
+  <div class="nav-item" data-tab="webinario">
+    <div class="icon">🎙️</div>
+    <span>Webinário</span>
+  </div>
+  <div class="sidebar-footer">
+    <div class="status-line">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Conectado</span>
+    </div>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Tab: Visão Geral -->
+  <div class="tab-content active" id="tab-visao-geral">
+    <div class="page-title">📊 Visão Geral</div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Pendentes</div>
+        <div class="card-value" id="stat-pendentes">-</div>
+        <div class="card-sub">aguardando processamento</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Aguardando OK</div>
+        <div class="card-value" id="stat-aguardando">-</div>
+        <div class="card-sub">confirmação enviada</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Executados</div>
+        <div class="card-value" id="stat-executados">-</div>
+        <div class="card-sub">ações concluídas</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Erros</div>
+        <div class="card-value" id="stat-erros">-</div>
+        <div class="card-sub">ações com falha</div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">Ciclos executados</div>
+        <div class="card-value" id="stat-ciclos">-</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Último ciclo</div>
+        <div class="card-value" style="font-size:15px" id="stat-ultimo-ciclo">-</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Uptime</div>
+        <div class="card-value" style="font-size:15px" id="stat-uptime">-</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Conta Sendflow</div>
+        <div class="card-value" style="font-size:15px" id="stat-conta">-</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:24px">
+      <button class="btn btn-primary" onclick="executarCiclo()">▶ Executar ciclo agora</button>
+      <button class="btn btn-secondary" onclick="executarBackup()">💾 Fazer backup</button>
+      <button class="btn btn-secondary" onclick="recarregarTudo()">🔄 Atualizar dados</button>
+    </div>
+
+    <!-- Aprovações pendentes -->
+    <div class="table-wrap" id="wrap-aprovacoes" style="display:none; border-color:var(--warn)">
+      <div class="table-header" style="background:var(--warn-bg)">
+        <h3 style="color:var(--warn)">⚡ Aguardando sua aprovação</h3>
+      </div>
+      <div id="lista-aprovacoes"></div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>Próximos agendamentos</h3>
+        <div style="font-size:12px;color:var(--text2)">Crie direto no Notion ou pelo botão em Agendamentos</div>
+      </div>
+      <div id="proximos-agendamentos">
+        <div class="loading-overlay"><div class="spinner"></div> Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Agendamentos -->
+  <div class="tab-content" id="tab-agendamentos">
+    <div class="page-title" style="justify-content:space-between">
+      <span>📅 Agendamentos</span>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Novo Agendamento</button>
+    </div>
+    <div class="table-wrap">
+      <div id="tabela-agendamentos">
+        <div class="loading-overlay"><div class="spinner"></div> Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Campanhas -->
+  <div class="tab-content" id="tab-campanhas">
+    <div class="page-title" style="justify-content:space-between">
+      <span>📣 Campanhas</span>
+      <button class="btn btn-primary" onclick="syncCampanhas()">🔄 Sincronizar do Sendflow</button>
+    </div>
+    <div class="table-wrap">
+      <div id="tabela-campanhas">
+        <div class="loading-overlay"><div class="spinner"></div> Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Webinário -->
+  <div class="tab-content" id="tab-webinario">
+    <div class="page-title" style="justify-content:space-between">
+      <span>🎙️ Webinário</span>
+      <button class="btn btn-primary btn-sm" onclick="wbNovoCliente()">+ Novo</button>
+    </div>
+
+    <!-- Lista de clientes -->
+    <div id="wb-lista-clientes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px">
+      <div class="loading-overlay" style="position:static;background:none;padding:32px 0;grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
+    </div>
+
+    <!-- Painel de edição -->
+    <div id="wb-painel" style="display:none">
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div class="table-header">
+          <h3 id="wb-painel-titulo">Editar webinário</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="wbTestarSwitchy()">🔗 Testar Switch.io</button>
+            <button class="btn btn-danger btn-sm" onclick="wbDeletar()">🗑 Excluir</button>
+            <button class="btn btn-primary btn-sm" onclick="wbSalvar()">💾 Salvar</button>
+          </div>
+        </div>
+        <div style="padding:20px">
+          <input type="hidden" id="wb-id">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="form-group" style="margin:0">
+              <label>Nome do cliente</label>
+              <input type="text" id="wb-nome-cliente" placeholder="Ex: Chef Áureo">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Nome base do grupo</label>
+              <input type="text" id="wb-nome-base" placeholder="Ex: Cookie Sandwich">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Número Admin (WhatsApp)</label>
+              <input type="text" id="wb-numero-admin" placeholder="Ex: 5511999999999">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Dia da semana</label>
+              <select id="wb-dia-semana">
+                <option value="0">Domingo</option>
+                <option value="1">Segunda</option>
+                <option value="2">Terça</option>
+                <option value="3">Quarta</option>
+                <option value="4">Quinta</option>
+                <option value="5">Sexta</option>
+                <option value="6">Sábado</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Hora do webinário</label>
+              <input type="time" id="wb-hora-webinario">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Hora de corte (cron dispara)</label>
+              <input type="time" id="wb-hora-corte">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Switch.io Link ID</label>
+              <input type="text" id="wb-switchy-link-id" placeholder="Ex: webinar-sandwich">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Switch.io Domínio</label>
+              <input type="text" id="wb-switchy-domain" placeholder="Ex: link.exemplo.com">
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1">
+              <label>Descrição do grupo</label>
+              <textarea id="wb-descricao-grupo" rows="2"></textarea>
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1">
+              <label>URL da foto do grupo</label>
+              <input type="url" id="wb-foto-url" placeholder="https://...">
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1">
+              <label>Mensagem WhatsApp <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">— variáveis: {nome_grupo} {link_grupo} {data_webinario}</span></label>
+              <textarea id="wb-mensagem-wpp" rows="4" placeholder="✅ Grupo criado!&#10;*{nome_grupo}*&#10;📅 {data_webinario}&#10;🔗 {link_grupo}"></textarea>
+            </div>
+            <div class="form-group" style="margin:0;display:flex;align-items:center;gap:12px">
+              <label style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--text)">Módulo ativo</label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="wb-ativo" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">
+                <span id="wb-ativo-label" style="font-size:13px;color:var(--text2)">desativado</span>
+              </label>
+            </div>
+            <div class="form-group" style="margin:0;display:flex;flex-direction:column;gap:6px">
+              <label>Data de teste (opcional)</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="date" id="wb-data-override" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="wbExecutar()">▶ Executar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div id="wb-preview" style="margin-top:20px;padding:16px;background:var(--surface2);border-radius:var(--radius);display:none">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Preview do nome</div>
+            <div id="wb-preview-nome" style="font-size:15px;font-weight:600;color:var(--text)"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Histórico do cliente selecionado -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Histórico</h3>
+          <button class="btn btn-secondary btn-sm" onclick="wbCarregarHistorico()">🔄 Atualizar</button>
+        </div>
+        <div id="wb-tabela-historico">
+          <div class="loading-overlay" style="position:static;padding:24px"><div class="spinner"></div> Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Logs -->
+  <div class="tab-content" id="tab-logs">
+    <div class="page-title" style="justify-content:space-between">
+      <span>📋 Logs de execução</span>
+      <button class="btn btn-secondary btn-sm" onclick="carregarLogs()">🔄 Atualizar</button>
+    </div>
+    <div class="table-wrap">
+      <div id="lista-logs">
+        <div class="loading-overlay"><div class="spinner"></div> Carregando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Novo Agendamento -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)fecharModal()">
+  <div class="modal">
+    <h3>Novo Agendamento</h3>
+    <form id="form-agendamento" onsubmit="salvarAgendamento(event)">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="ag-nome" required placeholder="Ex: Renomear grupo Brig">
+      </div>
+      <div class="form-group">
+        <label>Data / Hora</label>
+        <input type="datetime-local" id="ag-datahora" required>
+      </div>
+      <div class="form-group">
+        <label>Tipo de Ação</label>
+        <select id="ag-tipo" required>
+          <option value="">Selecione...</option>
+          <option value="enviar_mensagem">Enviar mensagem</option>
+          <option value="renomear_grupo">Renomear grupo</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Campanha</label>
+        <select id="ag-campanha" required>
+          <option value="">Carregando campanhas...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Parâmetro</label>
+        <textarea id="ag-parametro" rows="3" required placeholder="Texto da mensagem ou novo nome do grupo"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar">Criar agendamento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───
+let agendamentos = [];
+let campanhas = [];
+
+// ─── Navigation ───
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('tab-' + item.dataset.tab).classList.add('active');
+    if (item.dataset.tab === 'logs') carregarLogs();
+    if (item.dataset.tab === 'webinario') { carregarConfigWebinario(); carregarHistoricoWebinario(); }
+  });
+});
+
+// ─── Toast ───
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── API calls ───
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  return res.json();
+}
+
+// ─── Format helpers ───
+function formatDate(iso) {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+function formatUptime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+function badge(status) {
+  return `<span class="badge badge-${status}">${status}</span>`;
+}
+function tipoLabel(tipo) {
+  if (tipo === 'renomear_grupo') return 'Renomear grupo';
+  if (tipo === 'enviar_mensagem') return 'Enviar mensagem';
+  return tipo;
+}
+
+// ─── Load data ───
+async function carregarStatus() {
+  try {
+    const s = await api('/api/status');
+    document.getElementById('stat-ciclos').textContent = s.ciclosExecutados;
+    document.getElementById('stat-ultimo-ciclo').textContent = s.ultimoCiclo ? formatDate(s.ultimoCiclo) : 'Nenhum';
+    document.getElementById('stat-uptime').textContent = formatUptime(s.uptime);
+    document.getElementById('stat-conta').textContent = s.numero || '-';
+    document.getElementById('status-dot').style.background = '#16A34A';
+    document.getElementById('status-text').textContent = 'Conectado';
+  } catch {
+    document.getElementById('status-dot').style.background = '#DC2626';
+    document.getElementById('status-text').textContent = 'Offline';
+  }
+}
+
+async function carregarPendentes() {
+  try {
+    // Fonte 1: pendentes em memória (com shortId)
+    const emMemoria = await api('/api/pendentes');
+
+    // Fonte 2: agendamentos aguardando_ok no Notion (sem shortId — ex: após restart)
+    const doNotion = agendamentos.filter(a =>
+      a.status === 'aguardando_ok' &&
+      !emMemoria.some(m => m.pageId === a.id)
+    );
+
+    const wrap = document.getElementById('wrap-aprovacoes');
+    const el = document.getElementById('lista-aprovacoes');
+
+    if (!emMemoria.length && !doNotion.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+    wrap.style.display = 'block';
+
+    const htmlMem = emMemoria.map(p => `
+      <div class="approval-card">
+        <div class="approval-info">
+          <div class="name">${escHtml(p.nome)}</div>
+          <div class="detail">
+            ${tipoLabel(p.tipoAcao)} · Código: <strong>${p.shortId}</strong> · ${formatDate(p.criadoEm)}
+          </div>
+          <div class="detail" style="margin-top:4px">
+            <em>${escHtml(p.parametro?.slice(0, 120))}${p.parametro?.length > 120 ? '...' : ''}</em>
+          </div>
+        </div>
+        <div class="approval-actions">
+          <button class="btn btn-approve btn-sm" onclick="aprovar('${p.shortId}','sim')">✅ Aprovar</button>
+          <button class="btn btn-reject btn-sm" onclick="aprovar('${p.shortId}','nao')">❌ Cancelar</button>
+        </div>
+      </div>
+    `).join('');
+
+    const htmlNotion = doNotion.map(a => `
+      <div class="approval-card">
+        <div class="approval-info">
+          <div class="name">${escHtml(a.nome)}</div>
+          <div class="detail">
+            ${tipoLabel(a.tipoAcao)} · ${formatDate(a.dataHora)}
+          </div>
+          <div class="detail" style="margin-top:4px">
+            <em>${escHtml(a.parametro?.slice(0, 120))}${a.parametro?.length > 120 ? '...' : ''}</em>
+          </div>
+        </div>
+        <div class="approval-actions">
+          <button class="btn btn-approve btn-sm" onclick="aprovarDireto('${a.id}','sim','${escAttr(a.nome)}')">✅ Aprovar</button>
+          <button class="btn btn-reject btn-sm" onclick="aprovarDireto('${a.id}','nao','${escAttr(a.nome)}')">❌ Cancelar</button>
+        </div>
+      </div>
+    `).join('');
+
+    el.innerHTML = htmlMem + htmlNotion;
+  } catch {
+    // silencioso
+  }
+}
+
+function escAttr(s) {
+  return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+async function aprovar(shortId, acao) {
+  const label = acao === 'sim' ? 'Executando' : 'Cancelando';
+  toast(`${label}...`);
+  try {
+    const res = await api(`/api/aprovar/${shortId}`, {
+      method: 'POST',
+      body: JSON.stringify({ acao }),
+    });
+    if (res.ok) {
+      toast(acao === 'sim' ? 'Ação executada com sucesso!' : 'Agendamento cancelado.');
+      recarregarTudo();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function aprovarDireto(pageId, acao, nome) {
+  const label = acao === 'sim' ? 'Executando' : 'Cancelando';
+  toast(`${label}...`);
+  try {
+    const res = await api(`/api/aprovar-direto/${pageId}`, {
+      method: 'POST',
+      body: JSON.stringify({ acao, nome }),
+    });
+    if (res.ok) {
+      toast(acao === 'sim' ? 'Ação executada com sucesso!' : 'Agendamento cancelado.');
+      recarregarTudo();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function carregarAgendamentos() {
+  try {
+    agendamentos = await api('/api/agendamentos');
+    renderStats();
+    renderProximos();
+    renderTabelaAgendamentos();
+  } catch (e) {
+    toast('Erro ao carregar agendamentos');
+  }
+}
+
+async function carregarCampanhas() {
+  try {
+    campanhas = await api('/api/campanhas');
+    renderTabelaCampanhas();
+    renderSelectCampanhas();
+  } catch (e) {
+    toast('Erro ao carregar campanhas');
+  }
+}
+
+async function carregarLogs() {
+  const el = document.getElementById('lista-logs');
+  el.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
+  try {
+    const logs = await api('/api/logs');
+    if (!logs.length) {
+      el.innerHTML = '<div class="empty">Nenhum log registrado ainda.</div>';
+      return;
+    }
+    el.innerHTML = logs.map(l => `
+      <div class="log-entry">
+        <div class="log-time">${formatDate(l.timestamp)}</div>
+        ${badge(l.status)}
+        <div class="log-detail">${escHtml(l.detalhe)}</div>
+      </div>
+    `).join('');
+  } catch {
+    el.innerHTML = '<div class="empty">Erro ao carregar logs.</div>';
+  }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ─── Render ───
+function renderStats() {
+  const counts = { pendente: 0, aguardando_ok: 0, executado: 0, erro: 0 };
+  agendamentos.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+  document.getElementById('stat-pendentes').textContent = counts.pendente;
+  document.getElementById('stat-aguardando').textContent = counts.aguardando_ok;
+  document.getElementById('stat-executados').textContent = counts.executado;
+  document.getElementById('stat-erros').textContent = counts.erro;
+}
+
+function renderProximos() {
+  const el = document.getElementById('proximos-agendamentos');
+  const proximos = agendamentos.filter(a => a.status === 'pendente' || a.status === 'aguardando_ok');
+  if (!proximos.length) {
+    el.innerHTML = '<div class="empty">Nenhum agendamento pendente.</div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>Nome</th><th>Data/Hora</th><th>Ação</th><th>Status</th></tr></thead>
+    <tbody>${proximos.slice(0, 10).map(a => `
+      <tr>
+        <td><strong>${escHtml(a.nome)}</strong></td>
+        <td>${formatDate(a.dataHora)}</td>
+        <td>${tipoLabel(a.tipoAcao)}</td>
+        <td>${badge(a.status)}</td>
+      </tr>
+    `).join('')}</tbody>
+  </table>`;
+}
+
+function renderTabelaAgendamentos() {
+  const el = document.getElementById('tabela-agendamentos');
+  if (!agendamentos.length) {
+    el.innerHTML = '<div class="empty">Nenhum agendamento encontrado.</div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>Nome</th><th>Data/Hora</th><th>Ação</th><th>Parâmetro</th><th>Status</th><th>Resultado</th></tr></thead>
+    <tbody>${agendamentos.map(a => `
+      <tr>
+        <td><strong>${escHtml(a.nome)}</strong></td>
+        <td style="white-space:nowrap">${formatDate(a.dataHora)}</td>
+        <td>${tipoLabel(a.tipoAcao)}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(a.parametro)}">${escHtml(a.parametro)}</td>
+        <td>${badge(a.status)}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(a.resultado)}">${escHtml(a.resultado) || '-'}</td>
+      </tr>
+    `).join('')}</tbody>
+  </table>`;
+}
+
+function renderTabelaCampanhas() {
+  const el = document.getElementById('tabela-campanhas');
+  if (!campanhas.length) {
+    el.innerHTML = '<div class="empty">Nenhuma campanha encontrada.<br><br><button class="btn btn-primary" onclick="syncCampanhas()">🔄 Sincronizar do Sendflow</button></div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>Nome</th><th>ID Sendflow</th><th>Instância</th><th>Status</th><th>Última Sync</th></tr></thead>
+    <tbody>${campanhas.map(c => `
+      <tr>
+        <td><strong>${escHtml(c.nome)}</strong></td>
+        <td><code style="font-family:'DM Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px">${escHtml(c.idSendflow)}</code></td>
+        <td>${escHtml(c.instancia) || '-'}</td>
+        <td>${badge(c.status || 'ativa')}</td>
+        <td>${formatDate(c.ultimaSync)}</td>
+      </tr>
+    `).join('')}</tbody>
+  </table>`;
+}
+
+function renderSelectCampanhas() {
+  const sel = document.getElementById('ag-campanha');
+  sel.innerHTML = '<option value="">Selecione a campanha...</option>' +
+    campanhas.map(c => `<option value="${c.id}">${escHtml(c.nome)}</option>`).join('');
+}
+
+// ─── Actions ───
+async function executarCiclo() {
+  toast('Executando ciclo...');
+  await api('/api/ciclo', { method: 'POST' });
+  toast('Ciclo concluído!');
+  recarregarTudo();
+}
+
+async function syncCampanhas() {
+  toast('Sincronizando campanhas do Sendflow...');
+  try {
+    const res = await api('/api/sync-campanhas', { method: 'POST' });
+    if (res.ok) {
+      toast(`Sync concluída! ${res.criadas} novas, ${res.atualizadas} atualizadas (${res.total} total)`);
+      carregarCampanhas();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha na sincronização'));
+    }
+  } catch (e) {
+    toast('Erro ao sincronizar: ' + e.message);
+  }
+}
+
+async function executarBackup() {
+  toast('Fazendo backup...');
+  await api('/api/backup', { method: 'POST' });
+  toast('Backup concluído!');
+}
+
+async function recarregarTudo() {
+  await Promise.all([carregarStatus(), carregarAgendamentos(), carregarCampanhas(), carregarPendentes()]);
+  toast('Dados atualizados!');
+}
+
+// ─── Modal ───
+function abrirModal() {
+  document.getElementById('modal-overlay').classList.add('show');
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 30);
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('ag-datahora').value = local;
+}
+
+function fecharModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  document.getElementById('form-agendamento').reset();
+}
+
+async function salvarAgendamento(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-salvar');
+  btn.disabled = true;
+  btn.textContent = 'Criando...';
+  try {
+    const body = {
+      nome: document.getElementById('ag-nome').value,
+      dataHora: new Date(document.getElementById('ag-datahora').value).toISOString(),
+      tipoAcao: document.getElementById('ag-tipo').value,
+      campanhaId: document.getElementById('ag-campanha').value,
+      parametro: document.getElementById('ag-parametro').value,
+    };
+    const res = await api('/api/agendamentos', { method: 'POST', body: JSON.stringify(body) });
+    if (res.ok) {
+      toast('Agendamento criado!');
+      fecharModal();
+      carregarAgendamentos();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha ao criar'));
+    }
+  } catch (err) {
+    toast('Erro: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Criar agendamento';
+}
+
+// ─── Webinário (multi-cliente) ───
+
+const DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+document.getElementById('wb-ativo').addEventListener('change', function() {
+  document.getElementById('wb-ativo-label').textContent = this.checked ? 'ativado' : 'desativado';
+});
+
+// Atualiza preview ao digitar
+['wb-nome-base','wb-dia-semana','wb-hora-webinario'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', wbAtualizarPreview);
+});
+
+function wbAtualizarPreview() {
+  const nomeBase = document.getElementById('wb-nome-base').value.trim();
+  const dia = parseInt(document.getElementById('wb-dia-semana').value);
+  const hora = (document.getElementById('wb-hora-webinario').value || '').split(':')[0]?.padStart(2,'0');
+  const preview = document.getElementById('wb-preview');
+  const previewNome = document.getElementById('wb-preview-nome');
+  if (!nomeBase) { preview.style.display = 'none'; return; }
+  const hoje = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const diasAte = (dia - hoje.getDay() + 7) % 7;
+  const t = new Date(hoje);
+  t.setDate(t.getDate() + diasAte);
+  const dd = String(t.getDate()).padStart(2,'0');
+  const mm = String(t.getMonth()+1).padStart(2,'0');
+  previewNome.textContent = `${nomeBase} • Aula ${dd}.${mm} às ${hora || '??'}h`;
+  preview.style.display = 'block';
+}
+
+async function wbCarregarLista() {
+  const el = document.getElementById('wb-lista-clientes');
+  try {
+    const lista = await api('/api/webinario');
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:32px 0">Nenhum webinário configurado. Clique em "+ Novo" para começar.</div>';
+      return;
+    }
+    el.innerHTML = lista.map(w => {
+      const cor = w.ativo ? 'var(--good)' : 'var(--text2)';
+      const dot = w.ativo ? '●' : '○';
+      const dia = DIAS[w.dia_semana] || '?';
+      const hora = (w.hora_webinario || '').split(':').slice(0,2).join(':');
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:600;font-size:14px">${escHtml(w.nome_cliente || w.id)}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${escHtml(w.nome_base || '')}</div>
+          </div>
+          <span style="color:${cor};font-size:13px;font-weight:600">${dot} ${w.ativo ? 'ativo' : 'pausado'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2)">${dia} · ${hora}</div>
+        <button class="btn btn-secondary btn-sm" onclick="wbEditar('${escHtml(w.id)}')">✏️ Editar</button>
+      </div>`;
+    }).join('');
+  } catch {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">Erro ao carregar lista.</div>';
+  }
+}
+
+async function wbEditar(id) {
+  try {
+    const cfg = await api(`/api/webinario/${id}/config`);
+    document.getElementById('wb-id').value = id;
+    document.getElementById('wb-painel-titulo').textContent = `Editando: ${cfg.nome_cliente || id}`;
+    document.getElementById('wb-nome-cliente').value = cfg.nome_cliente || '';
+    document.getElementById('wb-nome-base').value = cfg.nome_base || '';
+    document.getElementById('wb-numero-admin').value = cfg.numero_admin || '';
+    document.getElementById('wb-dia-semana').value = cfg.dia_semana ?? 2;
+    document.getElementById('wb-hora-webinario').value = cfg.hora_webinario || '';
+    document.getElementById('wb-hora-corte').value = cfg.hora_corte || '';
+    document.getElementById('wb-switchy-link-id').value = cfg.switchy_link_id || '';
+    document.getElementById('wb-switchy-domain').value = cfg.switchy_domain || '';
+    document.getElementById('wb-descricao-grupo').value = cfg.descricao_grupo || '';
+    document.getElementById('wb-foto-url').value = cfg.foto_grupo_url || '';
+    document.getElementById('wb-mensagem-wpp').value = cfg.mensagem_wpp || '';
+    document.getElementById('wb-data-override').value = '';
+    const ativo = cfg.ativo || false;
+    document.getElementById('wb-ativo').checked = ativo;
+    document.getElementById('wb-ativo-label').textContent = ativo ? 'ativado' : 'desativado';
+    document.getElementById('wb-painel').style.display = 'block';
+    document.getElementById('wb-painel').scrollIntoView({ behavior: 'smooth' });
+    wbAtualizarPreview();
+    wbCarregarHistorico();
+  } catch (e) {
+    toast('Erro ao carregar: ' + e.message);
+  }
+}
+
+function wbNovoCliente() {
+  document.getElementById('wb-id').value = '';
+  document.getElementById('wb-painel-titulo').textContent = 'Novo webinário';
+  document.getElementById('wb-nome-cliente').value = '';
+  document.getElementById('wb-nome-base').value = '';
+  document.getElementById('wb-numero-admin').value = '';
+  document.getElementById('wb-dia-semana').value = '2';
+  document.getElementById('wb-hora-webinario').value = '';
+  document.getElementById('wb-hora-corte').value = '';
+  document.getElementById('wb-switchy-link-id').value = '';
+  document.getElementById('wb-switchy-domain').value = '';
+  document.getElementById('wb-descricao-grupo').value = '';
+  document.getElementById('wb-foto-url').value = '';
+  document.getElementById('wb-mensagem-wpp').value = '';
+  document.getElementById('wb-data-override').value = '';
+  document.getElementById('wb-ativo').checked = false;
+  document.getElementById('wb-ativo-label').textContent = 'desativado';
+  document.getElementById('wb-preview').style.display = 'none';
+  document.getElementById('wb-tabela-historico').innerHTML = '';
+  document.getElementById('wb-painel').style.display = 'block';
+  document.getElementById('wb-painel').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function wbSalvar() {
+  const id = document.getElementById('wb-id').value.trim();
+  const cfg = {
+    ativo: document.getElementById('wb-ativo').checked,
+    nome_cliente: document.getElementById('wb-nome-cliente').value,
+    nome_base: document.getElementById('wb-nome-base').value,
+    numero_admin: document.getElementById('wb-numero-admin').value,
+    dia_semana: parseInt(document.getElementById('wb-dia-semana').value),
+    hora_webinario: document.getElementById('wb-hora-webinario').value,
+    hora_corte: document.getElementById('wb-hora-corte').value,
+    switchy_link_id: document.getElementById('wb-switchy-link-id').value,
+    switchy_domain: document.getElementById('wb-switchy-domain').value,
+    descricao_grupo: document.getElementById('wb-descricao-grupo').value,
+    foto_grupo_url: document.getElementById('wb-foto-url').value,
+    mensagem_wpp: document.getElementById('wb-mensagem-wpp').value,
+  };
+  try {
+    let res;
+    if (id) {
+      res = await api(`/api/webinario/${id}/config`, { method: 'POST', body: JSON.stringify(cfg) });
+    } else {
+      res = await api('/api/webinario', { method: 'POST', body: JSON.stringify(cfg) });
+      if (res.ok && res.id) document.getElementById('wb-id').value = res.id;
+    }
+    if (res.ok) {
+      toast('✅ Salvo e cron atualizado!');
+      wbCarregarLista();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function wbDeletar() {
+  const id = document.getElementById('wb-id').value;
+  if (!id) return;
+  if (!confirm('Excluir este webinário?')) return;
+  try {
+    const res = await api(`/api/webinario/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast('Excluído.');
+      document.getElementById('wb-painel').style.display = 'none';
+      wbCarregarLista();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function wbCarregarHistorico() {
+  const id = document.getElementById('wb-id').value;
+  if (!id) return;
+  const el = document.getElementById('wb-tabela-historico');
+  el.innerHTML = '<div style="padding:16px;color:var(--text2)"><div class="spinner" style="display:inline-block;margin-right:8px"></div> Carregando...</div>';
+  try {
+    const lista = await api(`/api/webinario/${id}/historico`);
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty">Nenhum webinário registrado ainda.</div>';
+      return;
+    }
+    el.innerHTML = `<table>
+      <thead><tr><th>Data</th><th>Nome do grupo</th><th>Link</th><th>Switchy</th><th></th></tr></thead>
+      <tbody>${lista.map(w => `
+        <tr>
+          <td style="white-space:nowrap">${formatDate(w.dataWebinario)}</td>
+          <td><strong>${escHtml(w.nome)}</strong></td>
+          <td>${w.linkGrupo ? `<a href="${escHtml(w.linkGrupo)}" target="_blank" style="color:var(--accent)">🔗 abrir</a>` : '-'}</td>
+          <td style="text-align:center">${w.switchyAtualizado ? '✅' : '❌'}</td>
+          <td><button class="btn btn-secondary btn-sm" onclick="wbReenviarWpp('${escHtml(w.campaignId)}')">📨 WPP</button></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>`;
+  } catch {
+    el.innerHTML = '<div class="empty">Erro ao carregar histórico.</div>';
+  }
+}
+
+async function wbReenviarWpp(campaignId) {
+  const id = document.getElementById('wb-id').value;
+  if (!id || !campaignId) return;
+  toast('Reenviando notificação...');
+  try {
+    const res = await api(`/api/webinario/${id}/reenviar-notificacao`, { method: 'POST', body: JSON.stringify({ campaignId }) });
+    if (res.ok) toast('✅ Mensagem reenviada!');
+    else toast('Erro: ' + (res.error || 'Falha'));
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function wbExecutar() {
+  const id = document.getElementById('wb-id').value;
+  if (!id) { toast('Salve o webinário primeiro.'); return; }
+  const dataOverride = document.getElementById('wb-data-override').value || undefined;
+  toast('Executando fluxo...');
+  try {
+    const res = await api(`/api/webinario/${id}/executar`, { method: 'POST', body: JSON.stringify({ dataOverride }) });
+    if (res.ok) {
+      toast(`✅ ${res.nomeGrupo} criado! Switchy: ${res.switchyOk ? 'ok' : 'falhou'}`);
+      wbCarregarHistorico();
+    } else if (res.motivo === 'duplicata') {
+      toast('Já existe webinário criado para essa data.');
+    } else if (res.motivo === 'inativo') {
+      toast('Módulo inativo. Ative nas configurações.');
+    } else {
+      toast('Erro: ' + (res.erro || res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function wbTestarSwitchy() {
+  const id = document.getElementById('wb-id').value;
+  toast('Testando conexão com Switch.io...');
+  try {
+    const res = await api(`/api/webinario/${id}/testar-switchy`, { method: 'POST' });
+    if (res.ok) {
+      const nomes = (res.workspaces || []).map(w => w.name).join(', ') || '(nenhum)';
+      toast(`✅ Switch.io ok! Workspaces: ${nomes}`);
+    } else {
+      toast('❌ Switch.io falhou: ' + (res.error || 'Erro desconhecido'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+function carregarConfigWebinario() { wbCarregarLista(); }
+function carregarHistoricoWebinario() { wbCarregarHistorico(); }
+
+// ─── Init ───
+recarregarTudo();
+
+// Auto-refresh a cada 30s
+setInterval(() => {
+  carregarStatus();
+  carregarAgendamentos();
+  carregarPendentes();
+}, 30000);
+</script>
+</body>
+</html>
