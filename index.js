@@ -14,7 +14,7 @@ import {
   sincronizarCampanhas,
   listarWebinarios,
 } from './notion.js';
-import { listarCampanhas as listarCampanhasSendflow } from './sendflow.js';
+import { listarCampanhas as listarCampanhasSendflow, obterCampanha } from './sendflow.js';
 import { runBackup } from './backup.js';
 import {
   lerWebinarios,
@@ -223,6 +223,15 @@ app.post('/api/backup', async (_req, res) => {
     res.json({ ok: true, message: 'Backup executado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/sendflow/release/:id', async (req, res) => {
+  try {
+    const r = await obterCampanha(req.params.id);
+    res.json(r.data);
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ error: err.message, data: err.response?.data });
   }
 });
 

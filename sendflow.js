@@ -69,10 +69,19 @@ export async function listarCampanhas() {
  * 2. PUT /sendapi/releases/{id} → associa a conta
  * Retorna: { id, inviteLink: 'https://sndflw.com/i/{id}' }
  */
-export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl, adminNumero }) {
+export const ADMINS_PADRAO = [
+  { name: 'Admin', number: '5511974561100' },
+  { name: 'Admin', number: '5511968753518' },
+  { name: 'Admin', number: '5511996651100' },
+];
+
+export const MEMBROS_PADRAO = [
+  { name: 'Membro', number: '5511955591100' },
+];
+
+export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl }) {
   const conta = accountId || ACCOUNT();
 
-  // 1. Criar release
   const post = await axios.post(
     `${API()}/sendapi/releases`,
     { name: nome, type: 'WhatsRelease' },
@@ -81,7 +90,6 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
 
   const releaseId = post.data.id;
 
-  // 2. Associar conta + configurar grupo (descrição, imagem, admins)
   const groupSettings = {
     name: nome,
     fixedDescription: descricao || '',
@@ -92,9 +100,11 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
     onlyAdminsSpeak: true,
     createOpenGroupAndCloseAfter: false,
     groupCreationMode: 'normal',
+    antiHacker: true,
+    admins: ADMINS_PADRAO,
+    members: MEMBROS_PADRAO,
   };
   if (fotoUrl) groupSettings.image = fotoUrl;
-  groupSettings.admins = [{ name: 'Admin', number: '5511974561100' }];
 
   await axios.put(
     `${API()}/sendapi/releases/${releaseId}`,
@@ -109,6 +119,18 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
       inviteLink: `https://sndflw.com/i/${releaseId}`,
     },
   };
+}
+
+/**
+ * GET /sendapi/releases/{id} — inspeciona uma campanha existente.
+ * Útil para descobrir os nomes exatos de campos do group.
+ */
+export async function obterCampanha(releaseId) {
+  const res = await axios.get(
+    `${API()}/sendapi/releases/${releaseId}`,
+    { headers: headers(), timeout: 15000 }
+  );
+  return { status: res.status, data: res.data };
 }
 
 /**
