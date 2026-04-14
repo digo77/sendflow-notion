@@ -144,7 +144,7 @@ const DIAS_SEMANA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta'
 function proximaDataISO(diaSemana) {
   const spNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
   const diff = (diaSemana - spNow.getDay() + 7) % 7;
-  const diasAte = diff === 0 ? 7 : diff;
+  const diasAte = diff + 7;
   const t = new Date(spNow);
   t.setDate(t.getDate() + diasAte);
   const y = t.getFullYear();
