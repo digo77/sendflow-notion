@@ -16,37 +16,22 @@ function headers() {
  * @param {string} domain  - Domínio do link (ex: "link.chefaureomagalhaes.com")
  */
 export async function atualizarDestinoLink(linkId, novaUrl, domain) {
-  const where = domain
-    ? `{ id: { _eq: "${linkId}" }, domain: { _eq: "${domain}" } }`
-    : `{ id: { _eq: "${linkId}" } }`;
+  const endpoint = domain
+    ? `${SWITCHY_BASE_URL}/links/by-domain/${encodeURIComponent(domain)}/${encodeURIComponent(linkId)}`
+    : `${SWITCHY_BASE_URL}/links/${encodeURIComponent(linkId)}`;
 
-  const res = await fetch('https://graphql.switchy.io/v1/graphql', {
-    method: 'POST',
+  const res = await fetch(endpoint, {
+    method: 'PUT',
     headers: headers(),
-    body: JSON.stringify({
-      query: `
-        mutation {
-          update_links(
-            where: ${where}
-            _set: { url: "${novaUrl}" }
-          ) { affected_rows returning { id url domain } }
-        }
-      `,
-    }),
+    body: JSON.stringify({ link: { url: novaUrl }, autofill: false }),
   });
 
   if (!res.ok) {
     const erro = await res.text();
-    throw new Error(`Switch.io erro ${res.status}: ${erro}`);
+    throw new Error(`Switchy erro ${res.status}: ${erro}`);
   }
 
-  const data = await res.json();
-  if (data.errors) throw new Error(`Switch.io GraphQL: ${data.errors[0].message}`);
-
-  const affected = data?.data?.update_links?.affected_rows ?? 0;
-  if (affected === 0) throw new Error(`Switch.io: link "${linkId}" não encontrado`);
-
-  return data.data.update_links.returning[0];
+  return res.json();
 }
 
 /**
