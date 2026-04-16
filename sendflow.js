@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API = () => process.env.SENDFLOW_API_URL?.replace(/\/$/, '');
+const PRO_API = 'https://sendflow.pro';
 const TOKEN = () => process.env.SENDFLOW_API_TOKEN;
 const ACCOUNT = () => process.env.SENDFLOW_ACCOUNT_ID;
 
@@ -119,6 +120,64 @@ export async function listarContas() {
   const res = await axios.get(
     `${API()}/sendapi/accounts`,
     { headers: headers(), timeout: 15000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
+ * Agenda uma mensagem de texto para uma campanha (aparece no Sendflow como "Agendado").
+ * POST https://sendflow.pro/sendapi/actions/send-text-message
+ *
+ * @param {object} opts
+ * @param {string} opts.releaseId     - ID da campanha no Sendflow
+ * @param {string} opts.accountId     - ID da instância/conta WhatsApp
+ * @param {string} opts.mensagem      - Texto da mensagem
+ * @param {string} opts.scheduledTo   - Data ISO 8601 (ex: "2026-04-21T13:00:00.000Z")
+ * @param {string} [opts.shippingSpeed] - Velocidade: none|fast|normal|slow (padrão: none)
+ */
+export async function agendarMensagemTexto({ releaseId, accountId, mensagem, scheduledTo, shippingSpeed = 'none' }) {
+  const res = await axios.post(
+    `${PRO_API}/sendapi/actions/send-text-message`,
+    {
+      accountId: accountId || ACCOUNT(),
+      releaseId,
+      messageText: mensagem,
+      scheduled: true,
+      scheduledTo,
+      chooseSpecificGroups: false,
+      options: { shippingSpeed },
+    },
+    { headers: headers(), timeout: 20000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
+ * Agenda uma mensagem com imagem para uma campanha (aparece no Sendflow como "Agendado").
+ * POST https://sendflow.pro/sendapi/actions/send-image-message
+ *
+ * @param {object} opts
+ * @param {string} opts.releaseId     - ID da campanha no Sendflow
+ * @param {string} opts.accountId     - ID da instância/conta WhatsApp
+ * @param {string} opts.imageUrl      - URL pública da imagem
+ * @param {string} [opts.caption]     - Texto/legenda junto com a imagem
+ * @param {string} opts.scheduledTo   - Data ISO 8601
+ * @param {string} [opts.shippingSpeed] - Velocidade: none|fast|normal|slow
+ */
+export async function agendarMensagemImagem({ releaseId, accountId, imageUrl, caption, scheduledTo, shippingSpeed = 'none' }) {
+  const res = await axios.post(
+    `${PRO_API}/sendapi/actions/send-image-message`,
+    {
+      accountId: accountId || ACCOUNT(),
+      releaseId,
+      url: imageUrl,
+      caption: caption || '',
+      scheduled: true,
+      scheduledTo,
+      chooseSpecificGroups: false,
+      options: { shippingSpeed },
+    },
+    { headers: headers(), timeout: 20000 }
   );
   return { status: res.status, data: res.data };
 }

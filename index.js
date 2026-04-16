@@ -339,6 +339,39 @@ app.get('/api/logs', async (_req, res) => {
   }
 });
 
+// ─── Proxy de imagens (para URLs sem extensão, ex: ImageKit) ───
+// Sendflow exige extensão no caminho da URL (ex: .jpg). Este proxy serve
+// imagens de qualquer origem com um path terminado em .jpg.
+// Uso: GET /img/nome-qualquer.jpg?src=<URL-da-imagem-codificada>
+app.get('/img/:name', async (req, res) => {
+  const src = req.query.src;
+  if (!src) return res.status(400).send('Missing src parameter');
+
+  let srcUrl;
+  try {
+    srcUrl = decodeURIComponent(src);
+    // Aceita apenas URLs do ImageKit para segurança
+    if (!srcUrl.startsWith('https://ik.imagekit.io/')) {
+      return res.status(403).send('Only ImageKit URLs are allowed');
+    }
+  } catch {
+    return res.status(400).send('Invalid src parameter');
+  }
+
+  try {
+    const response = await fetch(srcUrl);
+    if (!response.ok) return res.status(502).send(`Upstream error: ${response.status}`);
+    const ct = response.headers.get('content-type') || 'image/jpeg';
+    res.set('Content-Type', ct);
+    res.set('Cache-Control', 'public, max-age=86400');
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('[ImgProxy] Erro:', err.message);
+    res.status(500).send(err.message);
+  }
+});
+
 // ─── Health check ───
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
