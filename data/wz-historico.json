@@ -1,5 +1,210 @@
 [
   {
+    "id": "wz-1776450243956",
+    "agendadoEm": "2026-04-17T18:24:03.956Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": null,
+    "dataWebinario": "2026-04-21",
+    "total": 8,
+    "agendadas": 8,
+    "falhas": 0,
+    "validacao": {
+      "ok": true,
+      "erros": 0,
+      "avisos": 0
+    },
+    "resultados": [
+      {
+        "id": "IN1",
+        "ok": true,
+        "actionId": "t144Mdh7eVFFRfWz3PKT",
+        "scheduledTo": "2026-04-22T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN2",
+        "ok": true,
+        "actionId": "LXdlS9bdL7ASxZPqPkCg",
+        "scheduledTo": "2026-04-22T13:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN3",
+        "ok": true,
+        "actionId": "RdUTsgIZ8kbWCXFxRxUF",
+        "scheduledTo": "2026-04-22T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN4",
+        "ok": true,
+        "actionId": "fmdIRyC82NpVZ72KatQs",
+        "scheduledTo": "2026-04-23T13:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN5",
+        "ok": true,
+        "actionId": "AiHaj5M050WAYhNe0qyB",
+        "scheduledTo": "2026-04-23T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN6",
+        "ok": true,
+        "actionId": "hCCZeYF87r4iAmnKEcGi",
+        "scheduledTo": "2026-04-24T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN7",
+        "ok": true,
+        "actionId": "YKLi2yHDVaPsC2JhLp7A",
+        "scheduledTo": "2026-04-24T02:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN8",
+        "ok": true,
+        "actionId": "vGPoxZlv0B1gboI4vPUE",
+        "scheduledTo": "2026-04-24T12:00:00.000Z",
+        "erro": null
+      }
+    ]
+  },
+  {
+    "id": "wz-1776450084041",
+    "agendadoEm": "2026-04-17T18:21:24.041Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": null,
+    "dataWebinario": "2026-04-21",
+    "total": 4,
+    "agendadas": 4,
+    "falhas": 0,
+    "validacao": {
+      "ok": true,
+      "erros": 0,
+      "avisos": 0
+    },
+    "resultados": [
+      {
+        "id": "DS1-2026-04-15T12:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-15T12:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "DS2-2026-04-22T00:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-22T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "DS3-2026-04-23T20:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-23T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "DS4-2026-04-24T03:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-24T03:00:00.000Z",
+        "erro": null
+      }
+    ]
+  },
+  {
+    "id": "wz-1776449822565",
+    "agendadoEm": "2026-04-17T18:17:02.565Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": null,
+    "dataWebinario": "2026-04-21",
+    "total": 10,
+    "agendadas": 10,
+    "falhas": 0,
+    "validacao": {
+      "ok": true,
+      "erros": 0,
+      "avisos": 0
+    },
+    "resultados": [
+      {
+        "id": "RN1-2026-04-18T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-18T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN2-2026-04-19T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-19T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN3-2026-04-20T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-20T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN4-2026-04-21T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN5-2026-04-21T20:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN6-2026-04-21T22:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T22:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN7-2026-04-21T23:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN8-2026-04-22T00:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-22T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN9-2026-04-24T01:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-24T01:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN10-2026-04-24T02:59:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-24T02:59:00.000Z",
+        "erro": null
+      }
+    ]
+  },
+  {
     "id": "wz-1776448668096",
     "agendadoEm": "2026-04-17T17:57:48.096Z",
     "releaseId": "4eGjwrl02ThSiFSVBmFs",

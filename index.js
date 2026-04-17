@@ -33,7 +33,7 @@ import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl, lerConfi
 import { aplicarVariaveis, formatarDataBR } from './wz-variaveis.js';
 import { validarSequencia } from './wz-validar.js';
 import { listarHistorico } from './wz-historico.js';
-import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado } from './wz-agendador.js';
+import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado, forcarExecucao } from './wz-agendador.js';
 import { testarConexao as testarSwitchy } from './switchy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -496,6 +496,16 @@ app.delete('/api/wz/agendados/:id', async (req, res) => {
   try {
     const entrada = await cancelarAgendado(req.params.id);
     res.json({ ok: true, entrada });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Força execução imediata de um agendamento pendente (pra teste)
+app.post('/api/wz/agendados/:id/executar', async (req, res) => {
+  try {
+    const r = await forcarExecucao(req.params.id);
+    res.json(r);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

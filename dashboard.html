@@ -769,6 +769,15 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- Agendados locais (RN/DS) -->
+    <div class="table-wrap" style="margin-top:20px">
+      <div class="table-header">
+        <h3>Renames e Descrições agendados</h3>
+        <button class="btn btn-secondary btn-sm" onclick="wzCarregarAgendadosLocais()">🔄 Atualizar</button>
+      </div>
+      <div id="wz-agendados-locais"></div>
+    </div>
+
     <!-- Histórico -->
     <div class="table-wrap" style="margin-top:20px">
       <div class="table-header">
@@ -1897,11 +1906,72 @@ async function wzCarregarHistorico() {
   }
 }
 
+async function wzCarregarAgendadosLocais() {
+  const el = document.getElementById('wz-agendados-locais');
+  el.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
+  try {
+    const lista = await api('/api/wz/agendados');
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty">Nenhum rename ou descrição agendado ainda.</div>';
+      return;
+    }
+    const agora = Date.now();
+    el.innerHTML = `<table>
+      <thead><tr>
+        <th>ID</th><th>Tipo</th><th>Horário</th><th>Status</th><th>Payload</th><th></th>
+      </tr></thead>
+      <tbody>${lista.map(e => {
+        const dt = new Date(e.scheduledTo);
+        const quando = dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
+        const passou = dt.getTime() <= agora;
+        const badge = e.status === 'pendente' ? (passou ? '<span class="badge badge-aguardando_ok">pendente · vencido</span>' : '<span class="badge badge-pendente">pendente</span>')
+                    : e.status === 'executado' ? '<span class="badge badge-executado">executado</span>'
+                    : e.status === 'cancelado' ? '<span class="badge badge-cancelado">cancelado</span>'
+                    : `<span class="badge badge-erro" title="${escAttr(e.erro || '')}">erro</span>`;
+        const tipo = e.tipoAcao === 'renomear_grupo' ? '🏷️ Rename' : '📝 Descrição';
+        const payload = (e.payload || '').slice(0, 60) + ((e.payload || '').length > 60 ? '...' : '');
+        const acao = e.status === 'pendente'
+          ? `<button class="btn btn-approve btn-sm" onclick="wzExecutarAgora('${escAttr(e.id)}')" style="margin-right:4px">▶ Executar agora</button><button class="btn btn-danger btn-sm" onclick="wzCancelarAgendado('${escAttr(e.id)}')">Cancelar</button>`
+          : '';
+        return `<tr>
+          <td><strong>${escHtml(e.acaoId)}</strong><div style="font-size:11px;color:var(--text2)">${escHtml(e.label || '')}</div></td>
+          <td>${tipo}</td>
+          <td style="white-space:nowrap">${escHtml(quando)}</td>
+          <td>${badge}</td>
+          <td style="max-width:280px;font-family:'DM Mono',monospace;font-size:12px">${escHtml(payload)}</td>
+          <td>${acao}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty" style="color:var(--danger)">Erro: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function wzCancelarAgendado(id) {
+  if (!confirm('Cancelar esse agendamento?')) return;
+  try {
+    const res = await api('/api/wz/agendados/' + encodeURIComponent(id), { method: 'DELETE' });
+    if (res.ok) { toast('✅ Cancelado'); wzCarregarAgendadosLocais(); }
+    else toast('Erro: ' + (res.error || 'falha'));
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
+async function wzExecutarAgora(id) {
+  if (!confirm('Executar AGORA (antes do horário)? Isso vai chamar o Sendflow imediatamente.')) return;
+  try {
+    const res = await api('/api/wz/agendados/' + encodeURIComponent(id) + '/executar', { method: 'POST' });
+    if (res.ok) { toast('✅ Executado no Sendflow!'); wzCarregarAgendadosLocais(); }
+    else toast('Erro: ' + (res.error || 'falha'));
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
 function carregarAquecimentoWZ() {
   wzCarregarCampanhas();
   wzCarregarSyncStatus();
   wzCarregarDropdownTeste();
   wzCarregarHistorico();
+  wzCarregarAgendadosLocais();
 }
 
 // ─── Init ───

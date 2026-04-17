@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renomearGrupo, atualizarRelease } from './sendflow.js';
+import { atualizarRelease } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
@@ -81,16 +81,12 @@ export async function executarPendentes() {
   for (const entrada of pendentes) {
     try {
       if (entrada.tipoAcao === 'renomear_grupo') {
-        // O releaseId na verdade refere-se ao release no Sendflow. A
-        // renomearGrupo espera o ID do GRUPO individual — mas num fluxo
-        // típico (1 grupo por release) podemos atualizar via PUT release.
-        // Por robustez, tentamos primeiro o rename direto; se falhar,
-        // fallback em atualizarRelease.
-        try {
-          await renomearGrupo(entrada.releaseId, entrada.payload);
-        } catch {
-          await atualizarRelease({ releaseId: entrada.releaseId, nome: entrada.payload, nomeGrupo: entrada.payload });
-        }
+        // Atualiza o nome no release (e no template do grupo) via PUT /releases/{id}
+        await atualizarRelease({
+          releaseId: entrada.releaseId,
+          nome: entrada.payload,
+          nomeGrupo: entrada.payload,
+        });
       } else if (entrada.tipoAcao === 'atualizar_descricao') {
         await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
       } else {
@@ -111,6 +107,35 @@ export async function executarPendentes() {
   }
   await salvar(todos);
   return { executadas: ok, falhas };
+}
+
+/** Força a execução imediata de UM agendamento (pra testes). */
+export async function forcarExecucao(id) {
+  const todos = await ler();
+  const entrada = todos.find((e) => e.id === id);
+  if (!entrada) throw new Error('Agendamento não encontrado');
+  if (entrada.status !== 'pendente') throw new Error(`Status atual: ${entrada.status}`);
+  try {
+    if (entrada.tipoAcao === 'renomear_grupo') {
+      await atualizarRelease({ releaseId: entrada.releaseId, nome: entrada.payload, nomeGrupo: entrada.payload });
+    } else if (entrada.tipoAcao === 'atualizar_descricao') {
+      await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
+    } else {
+      throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
+    }
+    entrada.status = 'executado';
+    entrada.executadoEm = new Date().toISOString();
+    entrada.forcado = true;
+    await salvar(todos);
+    return { ok: true, entrada };
+  } catch (err) {
+    const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+    entrada.status = 'erro';
+    entrada.erro = msg;
+    entrada.tentadoEm = new Date().toISOString();
+    await salvar(todos);
+    throw new Error(msg);
+  }
 }
 
 /** Cancela um agendamento pendente (não mexe em itens já executados). */
