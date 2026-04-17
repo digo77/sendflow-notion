@@ -126,6 +126,49 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
 }
 
 /**
+ * Busca detalhes de um release (útil pra fazer merge antes de atualizar).
+ * GET /sendapi/releases/{id}
+ */
+export async function buscarRelease(releaseId) {
+  const res = await axios.get(
+    `${API()}/sendapi/releases/${releaseId}`,
+    { headers: headers(), timeout: 15000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
+ * Lista os grupos INDIVIDUAIS criados dentro de um release.
+ * GET /sendapi/releases/{id}/groups
+ */
+export async function listarGruposDoRelease(releaseId) {
+  const res = await axios.get(
+    `${API()}/sendapi/releases/${releaseId}/groups`,
+    { headers: headers(), timeout: 15000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
+ * Atualiza um grupo INDIVIDUAL do WhatsApp (nome, descrição, foto).
+ * PUT /sendapi/release-groups/{releaseGroupId}
+ */
+export async function atualizarGrupo(releaseGroupId, { name, description, image } = {}) {
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (description !== undefined) body.description = description;
+  if (image !== undefined) body.image = image;
+  if (!Object.keys(body).length) return { status: 204, data: { noop: true } };
+
+  const res = await axios.put(
+    `${API()}/sendapi/release-groups/${releaseGroupId}`,
+    body,
+    { headers: headers(), timeout: 15000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
  * Atualiza configurações de um release (nome da campanha + settings do grupo).
  * PUT /sendapi/releases/{id}
  *
@@ -140,13 +183,25 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
 export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, fotoUrl, accountIds }) {
   const body = {};
   if (nome) body.name = nome;
-  const group = {};
-  if (nomeGrupo) group.name = nomeGrupo;
-  if (descricao !== undefined) group.fixedDescription = descricao;
-  if (fotoUrl) group.image = fotoUrl;
-  if (Object.keys(group).length) body.group = group;
-  if (accountIds?.length) body.accountIds = accountIds;
 
+  // IMPORTANTE: o Sendflow SOBRESCREVE o objeto `group` se for enviado parcial,
+  // apagando os outros campos. Mas ele só aceita esses 3 campos nesse PUT:
+  // name, fixedDescription, image. Qualquer outro dá HTTP 400.
+  // Solução: buscar o release atual e fazer merge SÓ desses 3 campos.
+  const alteraGroup = nomeGrupo !== undefined || descricao !== undefined || fotoUrl !== undefined;
+  if (alteraGroup) {
+    const atual = await buscarRelease(releaseId);
+    const g = atual.data?.group || {};
+    const group = {
+      name: nomeGrupo !== undefined ? nomeGrupo : g.name,
+      fixedDescription: descricao !== undefined ? descricao : g.fixedDescription,
+    };
+    const novaImagem = fotoUrl !== undefined ? fotoUrl : g.image;
+    if (novaImagem != null) group.image = novaImagem;
+    body.group = group;
+  }
+
+  if (accountIds?.length) body.accountIds = accountIds;
   if (!Object.keys(body).length) return { status: 204, data: { noop: true } };
 
   const res = await axios.put(

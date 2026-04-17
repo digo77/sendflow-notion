@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { atualizarRelease } from './sendflow.js';
+import { atualizarRelease, listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
@@ -28,6 +28,53 @@ async function ler() {
 async function salvar(lista) {
   await mkdir(dirname(STORE_PATH), { recursive: true });
   await writeFile(STORE_PATH, JSON.stringify(lista, null, 2), 'utf-8');
+}
+
+/**
+ * Executa uma entrada no Sendflow:
+ *   - renomear_grupo: atualiza o release (template) + todos os grupos
+ *     individuais já criados
+ *   - atualizar_descricao: idem, mas descrição
+ *
+ * O template é atualizado pra grupos FUTUROS; os grupos existentes recebem
+ * PUT individual pra propagar a mudança.
+ */
+async function executarAcao(entrada) {
+  if (entrada.tipoAcao === 'renomear_grupo') {
+    // 1. Atualiza o template do release
+    await atualizarRelease({ releaseId: entrada.releaseId, nome: entrada.payload, nomeGrupo: entrada.payload });
+    // 2. Atualiza os grupos já criados
+    const { data: grupos } = await listarGruposDoRelease(entrada.releaseId);
+    const detalhes = [];
+    for (const g of grupos || []) {
+      try {
+        await atualizarGrupo(g.id, { name: entrada.payload });
+        detalhes.push({ grupoId: g.id, ok: true });
+      } catch (err) {
+        const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+        detalhes.push({ grupoId: g.id, ok: false, erro: msg });
+      }
+    }
+    return { gruposAtualizados: detalhes };
+  }
+
+  if (entrada.tipoAcao === 'atualizar_descricao') {
+    await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
+    const { data: grupos } = await listarGruposDoRelease(entrada.releaseId);
+    const detalhes = [];
+    for (const g of grupos || []) {
+      try {
+        await atualizarGrupo(g.id, { description: entrada.payload });
+        detalhes.push({ grupoId: g.id, ok: true });
+      } catch (err) {
+        const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+        detalhes.push({ grupoId: g.id, ok: false, erro: msg });
+      }
+    }
+    return { gruposAtualizados: detalhes };
+  }
+
+  throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
 }
 
 /**
@@ -80,22 +127,12 @@ export async function executarPendentes() {
   let ok = 0, falhas = 0;
   for (const entrada of pendentes) {
     try {
-      if (entrada.tipoAcao === 'renomear_grupo') {
-        // Atualiza o nome no release (e no template do grupo) via PUT /releases/{id}
-        await atualizarRelease({
-          releaseId: entrada.releaseId,
-          nome: entrada.payload,
-          nomeGrupo: entrada.payload,
-        });
-      } else if (entrada.tipoAcao === 'atualizar_descricao') {
-        await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
-      } else {
-        throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
-      }
+      const detalhes = await executarAcao(entrada);
       entrada.status = 'executado';
       entrada.executadoEm = new Date().toISOString();
+      entrada.detalhes = detalhes;
       ok++;
-      console.log(`[WZ-Agendador] ✅ ${entrada.acaoId} executado`);
+      console.log(`[WZ-Agendador] ✅ ${entrada.acaoId} executado (${detalhes.gruposAtualizados?.length || 0} grupos)`);
     } catch (err) {
       const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
       entrada.status = 'erro';
@@ -116,15 +153,10 @@ export async function forcarExecucao(id) {
   if (!entrada) throw new Error('Agendamento não encontrado');
   if (entrada.status !== 'pendente') throw new Error(`Status atual: ${entrada.status}`);
   try {
-    if (entrada.tipoAcao === 'renomear_grupo') {
-      await atualizarRelease({ releaseId: entrada.releaseId, nome: entrada.payload, nomeGrupo: entrada.payload });
-    } else if (entrada.tipoAcao === 'atualizar_descricao') {
-      await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
-    } else {
-      throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
-    }
+    const detalhes = await executarAcao(entrada);
     entrada.status = 'executado';
     entrada.executadoEm = new Date().toISOString();
+    entrada.detalhes = detalhes;
     entrada.forcado = true;
     await salvar(todos);
     return { ok: true, entrada };
