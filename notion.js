@@ -104,9 +104,23 @@ export async function buscarCampanhas() {
       instancia: p['Instância']?.select?.name || '',
       status: p['Status']?.select?.name || '',
       ultimaSync: p['Última Sync']?.date?.start || null,
+      nomeGrupo: p['Nome do Grupo']?.rich_text?.[0]?.plain_text || '',
+      descricaoGrupo: p['Descrição do Grupo']?.rich_text?.[0]?.plain_text || '',
+      fotoUrl: p['Foto URL']?.url || '',
+      ultimoPush: p['Último Push Sendflow']?.date?.start || null,
       createdTime: page.created_time,
       notionUrl: page.url,
     };
+  });
+}
+
+/** Atualiza o campo "Último Push Sendflow" da campanha no Notion. */
+export async function marcarPushSendflow(campanhaPageId) {
+  await notion.pages.update({
+    page_id: campanhaPageId,
+    properties: {
+      'Último Push Sendflow': { date: { start: new Date().toISOString() } },
+    },
   });
 }
 

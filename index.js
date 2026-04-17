@@ -13,8 +13,9 @@ import {
   criarAgendamento,
   sincronizarCampanhas,
   listarWebinarios,
+  marcarPushSendflow,
 } from './notion.js';
-import { listarCampanhas as listarCampanhasSendflow } from './sendflow.js';
+import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease } from './sendflow.js';
 import { runBackup } from './backup.js';
 import {
   lerWebinarios,
@@ -29,6 +30,8 @@ import {
 } from './webinario.js';
 import { wzPreview, agendarSequenciaWZ, getSequencia } from './wz-sequencia.js';
 import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl } from './wz-notion.js';
+import { validarSequencia } from './wz-validar.js';
+import { listarHistorico } from './wz-historico.js';
 import { testarConexao as testarSwitchy } from './switchy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +40,8 @@ app.use(express.json());
 
 const PORT = process.env.WEBHOOK_PORT || 3001;
 const SECRET = process.env.WEBHOOK_SECRET;
+const DASH_USER = process.env.DASHBOARD_USER;
+const DASH_PASS = process.env.DASHBOARD_PASSWORD;
 
 // Estado do sistema
 const estado = {
@@ -55,6 +60,36 @@ function verificarSecret(req, res, next) {
   }
   next();
 }
+
+// ─── Middleware de autenticação Basic Auth para o dashboard e API ───
+// Rotas públicas: /webhook (tem x-webhook-secret), /health, /img/*
+function requireDashAuth(req, res, next) {
+  // Se DASHBOARD_USER/PASSWORD não definidos, desabilita auth (dev local)
+  if (!DASH_USER || !DASH_PASS) return next();
+
+  const rotasPublicas = ['/webhook', '/health'];
+  if (rotasPublicas.includes(req.path) || req.path.startsWith('/img/')) {
+    return next();
+  }
+
+  const header = req.headers.authorization || '';
+  const [scheme, creds] = header.split(' ');
+  if (scheme === 'Basic' && creds) {
+    try {
+      const decoded = Buffer.from(creds, 'base64').toString('utf-8');
+      const sep = decoded.indexOf(':');
+      const user = decoded.slice(0, sep);
+      const pass = decoded.slice(sep + 1);
+      if (user === DASH_USER && pass === DASH_PASS) return next();
+    } catch {}
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Sendflow-Notion Dashboard", charset="UTF-8"');
+  return res.status(401).send('Autenticação necessária.');
+}
+
+// Aplica auth globalmente (antes das rotas)
+app.use(requireDashAuth);
 
 // ─── POST /webhook ───
 app.post('/webhook', verificarSecret, async (req, res) => {
@@ -228,6 +263,45 @@ app.post('/api/backup', async (_req, res) => {
   }
 });
 
+// Push Notion → Sendflow: aplica os campos Nome do Grupo / Descrição / Foto
+// das linhas do Notion nas campanhas correspondentes do Sendflow.
+// Body: { pageIds?: string[] }  (se omitido, faz em todas que têm ID Sendflow
+// e algum dos campos preenchidos)
+app.post('/api/campanhas/push-sendflow', async (req, res) => {
+  const { pageIds } = req.body || {};
+  try {
+    const todas = await buscarCampanhas();
+    let alvos = todas.filter((c) => c.idSendflow);
+    if (pageIds?.length) alvos = alvos.filter((c) => pageIds.includes(c.id));
+    alvos = alvos.filter((c) => c.nomeGrupo || c.descricaoGrupo || c.fotoUrl);
+
+    const resultados = [];
+    for (const c of alvos) {
+      try {
+        const r = await atualizarRelease({
+          releaseId: c.idSendflow,
+          nome: c.nome,
+          nomeGrupo: c.nomeGrupo || undefined,
+          descricao: c.descricaoGrupo !== '' ? c.descricaoGrupo : undefined,
+          fotoUrl: c.fotoUrl || undefined,
+        });
+        await marcarPushSendflow(c.id);
+        resultados.push({ id: c.id, nome: c.nome, idSendflow: c.idSendflow, ok: true, status: r.status });
+      } catch (err) {
+        const erro = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+        resultados.push({ id: c.id, nome: c.nome, idSendflow: c.idSendflow, ok: false, erro });
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    const ok = resultados.filter((r) => r.ok).length;
+    console.log(`[Push-Sendflow] ${ok}/${resultados.length} campanhas sincronizadas`);
+    res.json({ ok: true, total: resultados.length, sucessos: ok, falhas: resultados.length - ok, resultados });
+  } catch (err) {
+    console.error('[Push-Sendflow] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/sync-campanhas', async (_req, res) => {
   try {
     const sf = await listarCampanhasSendflow();
@@ -383,6 +457,48 @@ app.get('/api/wz/sync-status', async (_req, res) => {
   }
 });
 
+// Envia uma (ou todas) as mensagens WZ direto pra um número de teste,
+// sem agendamento — pra validar texto, imagens e formatação antes de
+// disparar em massa pra campanha.
+app.post('/api/wz/testar', async (req, res) => {
+  const { numero, wzId, accountId } = req.body || {};
+  if (!numero) return res.status(400).json({ error: 'numero obrigatório (ex: 5511999999999)' });
+  const numeroLimpo = String(numero).replace(/\D/g, '');
+  if (numeroLimpo.length < 10) return res.status(400).json({ error: 'numero inválido' });
+
+  try {
+    const seq = await getSequencia();
+    if (!seq.length) return res.status(400).json({ error: 'Sequência vazia. Sincronize com o Notion.' });
+
+    const alvo = wzId ? seq.filter((m) => m.id === wzId) : seq;
+    if (!alvo.length) return res.status(404).json({ error: `Mensagem ${wzId} não encontrada` });
+
+    const acc = accountId || process.env.SENDFLOW_ACCOUNT_ID;
+    const resultados = [];
+    for (const m of alvo) {
+      try {
+        let r;
+        if (m.tipo === 'imagem' && m.imageUrl) {
+          r = await enviarImagemDireta(numeroLimpo, m.imageUrl, m.mensagem, acc);
+        } else {
+          r = await enviarMensagemDireta(numeroLimpo, m.mensagem, acc);
+        }
+        resultados.push({ id: m.id, ok: true, status: r.status });
+      } catch (err) {
+        const erro = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+        resultados.push({ id: m.id, ok: false, erro });
+      }
+      await new Promise((r) => setTimeout(r, 800)); // pausa entre envios diretos
+    }
+    const ok = resultados.filter((r) => r.ok).length;
+    console.log(`[WZ-Teste] ${ok}/${resultados.length} enviadas para ${numeroLimpo}`);
+    res.json({ ok: true, total: resultados.length, enviadas: ok, falhas: resultados.length - ok, resultados });
+  } catch (err) {
+    console.error('[WZ-Teste] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Sincroniza a sequência WZ lendo a página do Notion
 app.post('/api/wz/sync-notion', async (req, res) => {
   const { notionUrl } = req.body || {};
@@ -407,9 +523,31 @@ app.post('/api/wz/sync-notion', async (req, res) => {
   }
 });
 
+// Histórico das sequências já agendadas
+app.get('/api/wz/historico', async (_req, res) => {
+  try {
+    res.json(await listarHistorico(20));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Valida a sequência sem agendar (usado pelo dashboard antes de apertar "Agendar")
+app.get('/api/wz/validar', async (req, res) => {
+  const { dataWebinario } = req.query;
+  if (!dataWebinario) return res.status(400).json({ error: 'dataWebinario obrigatório' });
+  try {
+    const seq = await getSequencia();
+    const r = await validarSequencia({ mensagens: seq, dataWebinario });
+    res.json(r);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Agenda toda a sequência WZ no Sendflow
 app.post('/api/wz/agendar', async (req, res) => {
-  const { releaseId, accountId, dataWebinario } = req.body;
+  const { releaseId, accountId, dataWebinario, ignorarValidacao } = req.body;
   if (!releaseId || !dataWebinario) {
     return res.status(400).json({ error: 'releaseId e dataWebinario são obrigatórios' });
   }
@@ -417,6 +555,17 @@ app.post('/api/wz/agendar', async (req, res) => {
     return res.status(400).json({ error: 'dataWebinario deve estar no formato YYYY-MM-DD' });
   }
   try {
+    // 1. Validação pré-agendamento (bloqueante, salvo se ignorarValidacao=true)
+    const seq = await getSequencia();
+    const validacao = await validarSequencia({ mensagens: seq, dataWebinario });
+    if (!validacao.ok && !ignorarValidacao) {
+      return res.status(400).json({
+        error: 'Validação falhou. Corrija os erros ou re-envie com ignorarValidacao=true.',
+        validacao,
+      });
+    }
+
+    // 2. Agendamento
     const resultados = await agendarSequenciaWZ({
       releaseId,
       accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
@@ -425,7 +574,14 @@ app.post('/api/wz/agendar', async (req, res) => {
     const ok = resultados.filter((r) => r.ok).length;
     const falhas = resultados.filter((r) => !r.ok).length;
     console.log(`[WZ] ${ok} agendadas, ${falhas} falhas | campanha ${releaseId} | webinário ${dataWebinario}`);
-    res.json({ ok: true, total: resultados.length, agendadas: ok, falhas, resultados });
+
+    // 3. Registra no histórico (implementado a seguir)
+    try {
+      const { registrarHistorico } = await import('./wz-historico.js');
+      await registrarHistorico({ releaseId, accountId, dataWebinario, resultados, validacao });
+    } catch {} // se o módulo não existir ainda, segue em frente
+
+    res.json({ ok: true, total: resultados.length, agendadas: ok, falhas, resultados, validacao });
   } catch (err) {
     console.error('[WZ] Erro:', err.message);
     res.status(500).json({ error: err.message });

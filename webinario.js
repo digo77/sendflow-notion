@@ -231,16 +231,69 @@ export async function executarFluxoWebinario(id, { dataOverride } = {}) {
   if (switchyOk) await salvarEstadoLocal(id, dataISO, { campaignId, linkGrupo, nomeGrupo, switchyOk: true });
   if (switchyOk && pageId) try { await atualizarWebinario(pageId, { switchyAtualizado: true }); } catch {}
 
+  // 9. Auto-agendar sequência WZ (se habilitado)
+  let wzResumo = null;
+  if (cfg.auto_agendar_wz) {
+    try {
+      const [{ agendarSequenciaWZ }, { validarSequencia }, { getSequencia }, { registrarHistorico }] = await Promise.all([
+        import('./wz-sequencia.js'),
+        import('./wz-validar.js'),
+        import('./wz-sequencia.js'),
+        import('./wz-historico.js'),
+      ]);
+      const seq = await getSequencia();
+      const validacao = await validarSequencia({ mensagens: seq, dataWebinario: dataISO });
+      if (!validacao.ok) {
+        console.error(`[Webinário:${id}] Validação WZ falhou:`, validacao.erros);
+        wzResumo = { ok: false, motivo: 'validacao', erros: validacao.erros };
+        try {
+          await enviarMensagemDireta(
+            cfg.numero_admin,
+            `⚠️ Grupo criado mas auto-agendamento WZ falhou na validação:\n\n• ${validacao.erros.slice(0, 5).join('\n• ')}\n\nAgende manualmente pelo dashboard.`,
+            process.env.SENDFLOW_ACCOUNT_ID,
+          );
+        } catch {}
+      } else {
+        const resultados = await agendarSequenciaWZ({
+          releaseId: campaignId,
+          accountId: process.env.SENDFLOW_ACCOUNT_ID,
+          dataWebinario: dataISO,
+        });
+        const ok = resultados.filter((r) => r.ok).length;
+        const falhas = resultados.length - ok;
+        wzResumo = { ok: falhas === 0, total: resultados.length, agendadas: ok, falhas };
+        try {
+          await registrarHistorico({
+            releaseId: campaignId,
+            accountId: process.env.SENDFLOW_ACCOUNT_ID,
+            dataWebinario: dataISO,
+            resultados,
+            validacao,
+          });
+        } catch {}
+        console.log(`[Webinário:${id}] WZ auto-agendadas: ${ok}/${resultados.length}`);
+      }
+    } catch (err) {
+      console.error(`[Webinário:${id}] Erro auto-agendar WZ:`, err.message);
+      wzResumo = { ok: false, erro: err.message };
+    }
+  }
+
   // 10. WhatsApp
   const dataFormatada = `${DIAS_SEMANA[cfg.dia_semana]}, ${isoDia}/${isoMes} às ${horaWeb}h`;
-  const mensagem = (cfg.mensagem_wpp || '')
+  let mensagem = (cfg.mensagem_wpp || '')
     .replace('{nome_grupo}', nomeGrupo)
     .replace('{link_grupo}', linkGrupo)
     .replace('{data_webinario}', dataFormatada);
+  if (wzResumo?.ok) {
+    mensagem += `\n\n🔥 WZ auto-agendadas: ${wzResumo.agendadas}/${wzResumo.total}`;
+  } else if (wzResumo && wzResumo.agendadas !== undefined) {
+    mensagem += `\n\n⚠️ WZ: ${wzResumo.agendadas}/${wzResumo.total} (${wzResumo.falhas} falhas)`;
+  }
   try { await enviarMensagemDireta(cfg.numero_admin, mensagem, process.env.SENDFLOW_ACCOUNT_ID); } catch (err) { console.error(`[Webinário:${id}] WPP:`, err.message); }
 
-  console.log(`[Webinário:${id}] ✅ ${nomeGrupo} | Switchy: ${switchyOk}`);
-  return { ok: true, nomeGrupo, linkGrupo, campaignId, switchyOk };
+  console.log(`[Webinário:${id}] ✅ ${nomeGrupo} | Switchy: ${switchyOk}${wzResumo ? ` | WZ: ${wzResumo.ok ? 'ok' : 'falha'}` : ''}`);
+  return { ok: true, nomeGrupo, linkGrupo, campaignId, switchyOk, wzResumo };
 }
 
 // ─── Reenviar notificação ───

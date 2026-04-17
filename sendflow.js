@@ -53,6 +53,19 @@ export async function enviarMensagemDireta(numero, texto, accountId) {
 }
 
 /**
+ * Envia imagem (com caption opcional) direta para um número.
+ * POST /sendapi/send-image-message/{accountId}
+ */
+export async function enviarImagemDireta(numero, imageUrl, caption, accountId) {
+  const res = await axios.post(
+    `${API()}/sendapi/send-image-message/${accountId || ACCOUNT()}`,
+    { url: imageUrl, caption: caption || '', phoneNumber: numero },
+    { headers: headers(), timeout: 20000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
  * Lista campanhas (releases) do usuário.
  * GET /sendapi/releases
  */
@@ -110,6 +123,38 @@ export async function criarGrupoWebinario({ accountId, nome, descricao, fotoUrl,
       inviteLink: `https://sndflw.com/i/${releaseId}`,
     },
   };
+}
+
+/**
+ * Atualiza configurações de um release (nome da campanha + settings do grupo).
+ * PUT /sendapi/releases/{id}
+ *
+ * @param {object} opts
+ * @param {string} opts.releaseId
+ * @param {string} [opts.nome]        - Novo nome da campanha
+ * @param {string} [opts.nomeGrupo]   - Novo nome do grupo (template)
+ * @param {string} [opts.descricao]   - Nova descrição do grupo
+ * @param {string} [opts.fotoUrl]     - URL nova da foto do grupo
+ * @param {string[]} [opts.accountIds]
+ */
+export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, fotoUrl, accountIds }) {
+  const body = {};
+  if (nome) body.name = nome;
+  const group = {};
+  if (nomeGrupo) group.name = nomeGrupo;
+  if (descricao !== undefined) group.fixedDescription = descricao;
+  if (fotoUrl) group.image = fotoUrl;
+  if (Object.keys(group).length) body.group = group;
+  if (accountIds?.length) body.accountIds = accountIds;
+
+  if (!Object.keys(body).length) return { status: 204, data: { noop: true } };
+
+  const res = await axios.put(
+    `${API()}/sendapi/releases/${releaseId}`,
+    body,
+    { headers: headers(), timeout: 20000 }
+  );
+  return { status: res.status, data: res.data };
 }
 
 /**

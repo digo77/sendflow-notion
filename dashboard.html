@@ -493,7 +493,13 @@ tr:hover td { background: var(--surface2); }
   <div class="tab-content" id="tab-campanhas">
     <div class="page-title" style="justify-content:space-between">
       <span>📣 Campanhas</span>
-      <button class="btn btn-primary" onclick="syncCampanhas()">🔄 Sincronizar do Sendflow</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="syncCampanhas()">⬇️ Puxar do Sendflow</button>
+        <button class="btn btn-primary" onclick="pushCampanhasSendflow()">⬆️ Empurrar Notion → Sendflow</button>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin:-16px 0 16px 0;padding:10px 14px;background:var(--accent-light);border-radius:8px">
+      💡 <strong>Como funciona:</strong> Edite <em>Nome do Grupo</em>, <em>Descrição</em> ou <em>Foto URL</em> no Notion. Depois clique <strong>"Empurrar Notion → Sendflow"</strong> para aplicar as mudanças no Sendflow.
     </div>
     <div class="table-wrap">
       <div id="tabela-campanhas">
@@ -587,6 +593,13 @@ tr:hover td { background: var(--surface2); }
                 <span id="wb-ativo-label" style="font-size:13px;color:var(--text2)">desativado</span>
               </label>
             </div>
+            <div class="form-group" style="margin:0;display:flex;align-items:center;gap:12px">
+              <label style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--text)">🔥 Auto-agendar WZ</label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="wb-auto-wz" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">
+                <span id="wb-auto-wz-label" style="font-size:13px;color:var(--text2)">ao criar o grupo, já agenda a sequência</span>
+              </label>
+            </div>
             <div class="form-group" style="margin:0;display:flex;flex-direction:column;gap:6px">
               <label>Data de teste (opcional)</label>
               <div style="display:flex;gap:8px;align-items:center">
@@ -669,7 +682,32 @@ tr:hover td { background: var(--surface2); }
           </div>
         </div>
         <button class="btn btn-secondary" onclick="wzPreview()" style="margin-right:8px">🔍 Ver preview</button>
+        <button class="btn btn-secondary" onclick="wzValidar()" style="margin-right:8px">✅ Validar</button>
         <button class="btn btn-primary" id="btn-wz-agendar" onclick="wzAgendar()" disabled>🚀 Agendar mensagens no Sendflow</button>
+        <div id="wz-validacao-resultado" style="margin-top:16px"></div>
+      </div>
+    </div>
+
+    <!-- Teste -->
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div class="table-header">
+        <h3>Testar no meu WhatsApp</h3>
+        <span style="font-size:12px;color:var(--text2)">Envia a(s) mensagem(ns) direto pra um número — sem agendar</span>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="display:grid; grid-template-columns:2fr 1fr auto; gap:12px; align-items:end">
+          <div class="form-group" style="margin:0">
+            <label>Número (com DDI + DDD)</label>
+            <input type="text" id="wz-teste-numero" placeholder="5511999999999" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Qual mensagem?</label>
+            <select id="wz-teste-id" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+              <option value="">Todas (14)</option>
+            </select>
+          </div>
+          <button class="btn btn-secondary" id="btn-wz-testar" onclick="wzTestar()" style="white-space:nowrap">📱 Enviar teste</button>
+        </div>
       </div>
     </div>
 
@@ -692,6 +730,15 @@ tr:hover td { background: var(--surface2); }
         </div>
         <div id="wz-resultado-lista" style="padding:16px 24px"></div>
       </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="table-wrap" style="margin-top:20px">
+      <div class="table-header">
+        <h3>Histórico de agendamentos</h3>
+        <button class="btn btn-secondary btn-sm" onclick="wzCarregarHistorico()">🔄 Atualizar</button>
+      </div>
+      <div id="wz-historico-lista"></div>
     </div>
   </div>
 
@@ -1019,18 +1066,66 @@ function renderTabelaCampanhas() {
     el.innerHTML = '<div class="empty">Nenhuma campanha encontrada.<br><br><button class="btn btn-primary" onclick="syncCampanhas()">🔄 Sincronizar do Sendflow</button></div>';
     return;
   }
+  // Ordena por data de criação no Notion (mais recente primeiro)
+  const sorted = [...campanhas].sort((a, b) => {
+    const da = new Date(a.createdTime || a.ultimaSync || 0).getTime();
+    const db = new Date(b.createdTime || b.ultimaSync || 0).getTime();
+    return db - da;
+  });
   el.innerHTML = `<table>
-    <thead><tr><th>Nome</th><th>ID Sendflow</th><th>Instância</th><th>Status</th><th>Última Sync</th></tr></thead>
-    <tbody>${campanhas.map(c => `
-      <tr>
-        <td><strong>${escHtml(c.nome)}</strong></td>
-        <td><code style="font-family:'DM Mono',monospace;font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px">${escHtml(c.idSendflow)}</code></td>
-        <td>${escHtml(c.instancia) || '-'}</td>
+    <thead><tr>
+      <th>Nome</th>
+      <th>Nome do Grupo (Notion)</th>
+      <th>Foto</th>
+      <th>Status</th>
+      <th>Último Push</th>
+      <th></th>
+    </tr></thead>
+    <tbody>${sorted.map(c => {
+      const temOverride = c.nomeGrupo || c.descricaoGrupo || c.fotoUrl;
+      const notionLink = c.notionUrl ? `<a href="${escAttr(c.notionUrl)}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:12px">📝 Notion</a>` : '';
+      const foto = c.fotoUrl ? `<img src="${escAttr(c.fotoUrl)}" style="width:32px;height:32px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">` : '<span style="color:var(--text2);font-size:12px">—</span>';
+      return `<tr>
+        <td>
+          <strong>${escHtml(c.nome)}</strong>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:'DM Mono',monospace">${escHtml(c.idSendflow)}</div>
+        </td>
+        <td style="max-width:240px">
+          <div>${escHtml(c.nomeGrupo) || '<span style="color:var(--text2)">—</span>'}</div>
+          ${c.descricaoGrupo ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;max-height:32px;overflow:hidden">${escHtml(c.descricaoGrupo.slice(0,80))}${c.descricaoGrupo.length>80?'...':''}</div>` : ''}
+        </td>
+        <td>${foto}</td>
         <td>${badge(c.status || 'ativa')}</td>
-        <td>${formatDate(c.ultimaSync)}</td>
-      </tr>
-    `).join('')}</tbody>
+        <td style="font-size:12px;color:var(--text2)">${c.ultimoPush ? formatDate(c.ultimoPush) : '—'}</td>
+        <td style="text-align:right">
+          ${notionLink}
+          ${temOverride ? `<button class="btn btn-secondary btn-sm" onclick="pushCampanhasSendflow(['${escAttr(c.id)}'])" style="margin-left:8px">⬆️ Push</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
   </table>`;
+}
+
+async function pushCampanhasSendflow(pageIds) {
+  const todas = !pageIds;
+  if (todas && !confirm('Empurrar TODAS as campanhas (que têm Nome/Descrição/Foto no Notion) para o Sendflow?')) return;
+  toast('⬆️ Empurrando para o Sendflow...');
+  try {
+    const res = await api('/api/campanhas/push-sendflow', {
+      method: 'POST',
+      body: JSON.stringify({ pageIds: pageIds || undefined }),
+    });
+    if (res.ok) {
+      if (res.falhas === 0 && res.total > 0) toast(`✅ ${res.sucessos} campanha(s) atualizadas no Sendflow`);
+      else if (res.total === 0) toast('Nada a empurrar (nenhuma campanha com campos preenchidos)');
+      else toast(`⚠️ ${res.sucessos} ok · ${res.falhas} falhas`);
+      carregarCampanhas();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
 }
 
 function renderSelectCampanhas() {
@@ -1122,6 +1217,9 @@ const DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 document.getElementById('wb-ativo').addEventListener('change', function() {
   document.getElementById('wb-ativo-label').textContent = this.checked ? 'ativado' : 'desativado';
 });
+document.getElementById('wb-auto-wz').addEventListener('change', function() {
+  document.getElementById('wb-auto-wz-label').textContent = this.checked ? 'ativado · agendará automaticamente' : 'ao criar o grupo, já agenda a sequência';
+});
 
 // Atualiza preview ao digitar
 ['wb-nome-base','wb-dia-semana','wb-hora-webinario'].forEach(id => {
@@ -1195,6 +1293,9 @@ async function wbEditar(id) {
     const ativo = cfg.ativo || false;
     document.getElementById('wb-ativo').checked = ativo;
     document.getElementById('wb-ativo-label').textContent = ativo ? 'ativado' : 'desativado';
+    const autoWz = cfg.auto_agendar_wz || false;
+    document.getElementById('wb-auto-wz').checked = autoWz;
+    document.getElementById('wb-auto-wz-label').textContent = autoWz ? 'ativado · agendará automaticamente' : 'ao criar o grupo, já agenda a sequência';
     document.getElementById('wb-painel').style.display = 'block';
     document.getElementById('wb-painel').scrollIntoView({ behavior: 'smooth' });
     wbAtualizarPreview();
@@ -1221,6 +1322,8 @@ function wbNovoCliente() {
   document.getElementById('wb-data-override').value = '';
   document.getElementById('wb-ativo').checked = false;
   document.getElementById('wb-ativo-label').textContent = 'desativado';
+  document.getElementById('wb-auto-wz').checked = false;
+  document.getElementById('wb-auto-wz-label').textContent = 'ao criar o grupo, já agenda a sequência';
   document.getElementById('wb-preview').style.display = 'none';
   document.getElementById('wb-tabela-historico').innerHTML = '';
   document.getElementById('wb-painel').style.display = 'block';
@@ -1231,6 +1334,7 @@ async function wbSalvar() {
   const id = document.getElementById('wb-id').value.trim();
   const cfg = {
     ativo: document.getElementById('wb-ativo').checked,
+    auto_agendar_wz: document.getElementById('wb-auto-wz').checked,
     nome_cliente: document.getElementById('wb-nome-cliente').value,
     nome_base: document.getElementById('wb-nome-base').value,
     numero_admin: document.getElementById('wb-numero-admin').value,
@@ -1463,6 +1567,16 @@ async function wzAgendar() {
       body: JSON.stringify({ releaseId, dataWebinario: data }),
     });
 
+    // Validação falhou - mostra erros e sai
+    if (res.error && res.validacao) {
+      renderValidacao(res.validacao);
+      lista.innerHTML = '<div style="padding:16px;color:var(--danger)">Agendamento bloqueado. Corrija os erros acima e tente novamente.</div>';
+      toast('❌ Validação falhou');
+      btn.disabled = false;
+      btn.textContent = '🚀 Agendar mensagens no Sendflow';
+      return;
+    }
+
     document.getElementById('wz-resultado-titulo').textContent =
       `Resultado: ${res.agendadas}/${res.total} agendadas ✅  ${res.falhas > 0 ? res.falhas + ' com falha ❌' : ''}`;
 
@@ -1528,9 +1642,119 @@ async function wzSyncNotion() {
   btn.textContent = '🔄 Sincronizar do Notion';
 }
 
+async function wzCarregarDropdownTeste() {
+  try {
+    const msgs = await api('/api/wz/mensagens');
+    const sel = document.getElementById('wz-teste-id');
+    if (!msgs?.length) { sel.innerHTML = '<option value="">(sincronize primeiro)</option>'; return; }
+    sel.innerHTML = `<option value="">Todas (${msgs.length})</option>` +
+      msgs.map(m => `<option value="${escAttr(m.id)}">${escHtml(m.id + ' · ' + m.label)}</option>`).join('');
+    // pre-popula com último número usado
+    const last = localStorage.getItem('wz-teste-numero');
+    if (last && !document.getElementById('wz-teste-numero').value) {
+      document.getElementById('wz-teste-numero').value = last;
+    }
+  } catch {}
+}
+
+async function wzValidar() {
+  const data = document.getElementById('wz-data-webinario').value;
+  if (!data) { toast('Selecione a data do webinário'); return; }
+  const el = document.getElementById('wz-validacao-resultado');
+  el.innerHTML = '<div style="padding:12px;color:var(--text2)"><div class="spinner" style="display:inline-block;margin-right:8px"></div> Validando URLs de imagem, duplicatas, tamanho de texto...</div>';
+  try {
+    const r = await api('/api/wz/validar?dataWebinario=' + data);
+    renderValidacao(r);
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--danger);padding:12px">Erro: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderValidacao(r) {
+  const el = document.getElementById('wz-validacao-resultado');
+  const partes = [];
+  const cor = r.ok ? 'var(--good)' : 'var(--danger)';
+  const bg = r.ok ? 'var(--good-bg)' : 'var(--danger-bg)';
+  const icone = r.ok ? '✅' : '❌';
+  const titulo = r.ok ? 'Tudo certo!' : `${r.erros.length} erro(s) encontrado(s)`;
+  partes.push(`<div style="padding:12px 16px;background:${bg};border:1px solid ${cor};border-radius:8px;color:${cor};font-weight:600">${icone} ${escHtml(titulo)}</div>`);
+  if (r.erros?.length) {
+    partes.push('<ul style="margin:12px 0 0 20px;color:var(--danger);font-size:13px">' +
+      r.erros.map(e => `<li style="margin-bottom:4px">${escHtml(e)}</li>`).join('') + '</ul>');
+  }
+  if (r.avisos?.length) {
+    partes.push('<ul style="margin:12px 0 0 20px;color:var(--warn);font-size:13px">' +
+      r.avisos.map(e => `<li style="margin-bottom:4px">⚠️ ${escHtml(e)}</li>`).join('') + '</ul>');
+  }
+  if (r.ok) {
+    partes.push(`<div style="margin-top:8px;font-size:13px;color:var(--text2)">${r.totalMensagens} mensagens · ${r.totalImagens} imagens validadas</div>`);
+  }
+  el.innerHTML = partes.join('');
+}
+
+async function wzTestar() {
+  const numero = document.getElementById('wz-teste-numero').value.trim().replace(/\D/g, '');
+  const wzId = document.getElementById('wz-teste-id').value;
+  if (!numero || numero.length < 10) { toast('Número inválido (use DDI+DDD+número)'); return; }
+  const qual = wzId || 'todas as 14 mensagens';
+  if (!confirm(`Enviar ${qual} para ${numero}?`)) return;
+
+  localStorage.setItem('wz-teste-numero', numero);
+  const btn = document.getElementById('btn-wz-testar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando...';
+  try {
+    const res = await api('/api/wz/testar', { method: 'POST', body: JSON.stringify({ numero, wzId: wzId || undefined }) });
+    if (res.ok) {
+      if (res.falhas === 0) toast(`✅ ${res.enviadas} enviada(s) para ${numero}`);
+      else toast(`⚠️ ${res.enviadas} ok · ${res.falhas} falhas`);
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '📱 Enviar teste';
+}
+
+async function wzCarregarHistorico() {
+  const el = document.getElementById('wz-historico-lista');
+  el.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
+  try {
+    const h = await api('/api/wz/historico');
+    if (!h.length) {
+      el.innerHTML = '<div class="empty">Nenhum agendamento ainda.</div>';
+      return;
+    }
+    // Busca nomes das campanhas pra exibir amigável
+    const mapCamp = {};
+    (wzCampanhas || []).forEach(c => { if (c.idSendflow) mapCamp[c.idSendflow] = c.nome; });
+    el.innerHTML = `<table>
+      <thead><tr><th>Quando</th><th>Campanha</th><th>Webinário</th><th>Resultado</th></tr></thead>
+      <tbody>${h.map(e => {
+        const quando = new Date(e.agendadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
+        const webinario = new Date(e.dataWebinario + 'T00:00:00-03:00').toLocaleDateString('pt-BR');
+        const nome = mapCamp[e.releaseId] || e.releaseId;
+        const badgeOk = e.falhas === 0 ? `<span class="badge badge-executado">${e.agendadas}/${e.total}</span>` : `<span class="badge badge-erro">${e.agendadas}/${e.total} · ${e.falhas} falhas</span>`;
+        return `<tr>
+          <td style="white-space:nowrap">${escHtml(quando)}</td>
+          <td>${escHtml(nome)}</td>
+          <td>${escHtml(webinario)}</td>
+          <td>${badgeOk}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } catch (e) {
+    el.innerHTML = '<div class="empty">Erro ao carregar histórico.</div>';
+  }
+}
+
 function carregarAquecimentoWZ() {
   wzCarregarCampanhas();
   wzCarregarSyncStatus();
+  wzCarregarDropdownTeste();
+  wzCarregarHistorico();
 }
 
 // ─── Init ───
