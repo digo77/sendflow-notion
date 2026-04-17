@@ -391,6 +391,10 @@ tr:hover td { background: var(--surface2); }
     <div class="icon">🎙️</div>
     <span>Webinário</span>
   </div>
+  <div class="nav-item" data-tab="aquecimento-wz">
+    <div class="icon">🔥</div>
+    <span>Aquecimento WZ</span>
+  </div>
   <div class="sidebar-footer">
     <div class="status-line">
       <div class="status-dot" id="status-dot"></div>
@@ -625,6 +629,66 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
   </div>
+
+  <!-- Tab: Aquecimento WZ -->
+  <div class="tab-content" id="tab-aquecimento-wz">
+    <div class="page-title">🔥 Sequência de Aquecimento WZ</div>
+
+    <!-- Formulário -->
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div class="table-header">
+        <h3>Agendar Sequência</h3>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px">
+          <div class="form-group" style="margin:0">
+            <label>Campanha (Release ID Sendflow)</label>
+            <select id="wz-release-id" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+              <option value="">Carregando campanhas...</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Data do Webinário (terça-feira)</label>
+            <input type="date" id="wz-data-webinario" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="wzPreview()" style="margin-right:8px">🔍 Ver preview</button>
+        <button class="btn btn-primary" id="btn-wz-agendar" onclick="wzAgendar()" disabled>🚀 Agendar 13 mensagens no Sendflow</button>
+      </div>
+    </div>
+
+    <!-- Preview da sequência -->
+    <div id="wz-preview-wrap" style="display:none">
+      <div class="table-wrap" style="margin-bottom:20px">
+        <div class="table-header">
+          <h3>Preview do Agendamento</h3>
+          <span id="wz-preview-legenda" style="font-size:12px;color:var(--text2)"></span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Mensagem</th>
+              <th>Tipo</th>
+              <th>Data / Hora (Brasília)</th>
+            </tr>
+          </thead>
+          <tbody id="wz-preview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Resultado do agendamento -->
+    <div id="wz-resultado-wrap" style="display:none">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3 id="wz-resultado-titulo">Resultado</h3>
+        </div>
+        <div id="wz-resultado-lista" style="padding:16px 24px"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Modal: Novo Agendamento -->
@@ -683,6 +747,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     document.getElementById('tab-' + item.dataset.tab).classList.add('active');
     if (item.dataset.tab === 'logs') carregarLogs();
     if (item.dataset.tab === 'webinario') { carregarConfigWebinario(); carregarHistoricoWebinario(); }
+    if (item.dataset.tab === 'aquecimento-wz') carregarAquecimentoWZ();
   });
 });
 
@@ -1290,6 +1355,106 @@ async function wbTestarSwitchy() {
 
 function carregarConfigWebinario() { wbCarregarLista(); }
 function carregarHistoricoWebinario() { wbCarregarHistorico(); }
+
+// ─── Aquecimento WZ ───
+
+async function wzCarregarCampanhas() {
+  try {
+    const campanhas = await api('/api/campanhas');
+    const sel = document.getElementById('wz-release-id');
+    if (!campanhas?.length) {
+      sel.innerHTML = '<option value="">Nenhuma campanha encontrada</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">Selecione a campanha...</option>' +
+      campanhas.map(c => {
+        const rid = c.idSendflow || c.releaseId || '';
+        if (!rid) return '';
+        return `<option value="${escAttr(rid)}">${escHtml(c.nome || c.title || rid)}</option>`;
+      }).filter(Boolean).join('');
+  } catch (e) {
+    document.getElementById('wz-release-id').innerHTML = '<option value="">Erro ao carregar</option>';
+  }
+}
+
+async function wzPreview() {
+  const releaseId = document.getElementById('wz-release-id').value;
+  const data = document.getElementById('wz-data-webinario').value;
+  if (!data) { toast('Selecione a data do webinário'); return; }
+
+  const wrap = document.getElementById('wz-preview-wrap');
+  const tbody = document.getElementById('wz-preview-tbody');
+  tbody.innerHTML = '<tr><td colspan="4"><div class="loading-overlay"><div class="spinner"></div> Carregando...</div></td></tr>';
+  wrap.style.display = 'block';
+
+  try {
+    const items = await api(`/api/wz/preview?dataWebinario=${data}`);
+    const tipoIcon = t => t === 'imagem' ? '🖼️ Imagem' : '💬 Texto';
+    tbody.innerHTML = items.map(m => `
+      <tr>
+        <td><strong>${escHtml(m.id)}</strong></td>
+        <td style="color:var(--text2);font-size:12px">${escHtml(m.label)}</td>
+        <td>${tipoIcon(m.tipo)}</td>
+        <td><span style="font-family:var(--font-mono,monospace);font-size:12px">${escHtml(m.horaLocal)}</span></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('wz-preview-legenda').textContent = `${items.length} mensagens · webinário ${new Date(data + 'T00:00:00-03:00').toLocaleDateString('pt-BR')}`;
+    document.getElementById('btn-wz-agendar').disabled = !releaseId;
+    if (!releaseId) toast('Selecione uma campanha para agendar');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:var(--danger);padding:16px">${escHtml(e.message)}</td></tr>`;
+  }
+}
+
+async function wzAgendar() {
+  const releaseId = document.getElementById('wz-release-id').value;
+  const data = document.getElementById('wz-data-webinario').value;
+  if (!releaseId) { toast('Selecione uma campanha'); return; }
+  if (!data) { toast('Selecione a data do webinário'); return; }
+
+  const btn = document.getElementById('btn-wz-agendar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Agendando...';
+
+  const wrap = document.getElementById('wz-resultado-wrap');
+  const lista = document.getElementById('wz-resultado-lista');
+  wrap.style.display = 'block';
+  lista.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Aguarde, agendando mensagens no Sendflow...</div>';
+
+  try {
+    const res = await api('/api/wz/agendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ releaseId, dataWebinario: data }),
+    });
+
+    document.getElementById('wz-resultado-titulo').textContent =
+      `Resultado: ${res.agendadas}/${res.total} agendadas ✅  ${res.falhas > 0 ? res.falhas + ' com falha ❌' : ''}`;
+
+    lista.innerHTML = res.resultados.map(r => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:700;min-width:40px">${escHtml(r.id)}</span>
+        <span>${r.ok ? '✅' : '❌'}</span>
+        <span style="font-size:12px;color:var(--text2);font-family:monospace">${r.ok ? r.scheduledTo : escHtml(r.erro)}</span>
+      </div>
+    `).join('');
+
+    if (res.agendadas === res.total) {
+      toast(`✅ ${res.agendadas} mensagens agendadas no Sendflow!`);
+    } else {
+      toast(`⚠️ ${res.agendadas} ok, ${res.falhas} falhas`);
+    }
+  } catch (e) {
+    lista.innerHTML = `<p style="color:var(--danger)">${escHtml(e.message)}</p>`;
+    toast('Erro: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '🚀 Agendar 13 mensagens no Sendflow';
+}
+
+function carregarAquecimentoWZ() { wzCarregarCampanhas(); }
 
 // ─── Init ───
 recarregarTudo();

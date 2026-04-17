@@ -27,6 +27,7 @@ import {
   reenviarNotificacao,
   iniciarCronsWebinario,
 } from './webinario.js';
+import { wzPreview, agendarSequenciaWZ, WZ_SEQUENCIA } from './wz-sequencia.js';
 import { testarConexao as testarSwitchy } from './switchy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -336,6 +337,47 @@ app.get('/api/logs', async (_req, res) => {
     res.json(logs.slice(-100).reverse());
   } catch {
     res.json([]);
+  }
+});
+
+// ─── WZ Sequência de Aquecimento ───
+
+// Retorna preview do agendamento sem executar
+app.get('/api/wz/preview', (req, res) => {
+  const { dataWebinario } = req.query;
+  if (!dataWebinario || !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
+    return res.status(400).json({ error: 'dataWebinario obrigatório no formato YYYY-MM-DD' });
+  }
+  res.json(wzPreview(dataWebinario));
+});
+
+// Retorna a lista de mensagens WZ (sem agendar)
+app.get('/api/wz/mensagens', (_req, res) => {
+  res.json(WZ_SEQUENCIA.map(({ id, label, tipo, offset, hora, min }) => ({ id, label, tipo, offset, hora, min })));
+});
+
+// Agenda toda a sequência WZ no Sendflow
+app.post('/api/wz/agendar', async (req, res) => {
+  const { releaseId, accountId, dataWebinario } = req.body;
+  if (!releaseId || !dataWebinario) {
+    return res.status(400).json({ error: 'releaseId e dataWebinario são obrigatórios' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
+    return res.status(400).json({ error: 'dataWebinario deve estar no formato YYYY-MM-DD' });
+  }
+  try {
+    const resultados = await agendarSequenciaWZ({
+      releaseId,
+      accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+      dataWebinario,
+    });
+    const ok = resultados.filter((r) => r.ok).length;
+    const falhas = resultados.filter((r) => !r.ok).length;
+    console.log(`[WZ] ${ok} agendadas, ${falhas} falhas | campanha ${releaseId} | webinário ${dataWebinario}`);
+    res.json({ ok: true, total: resultados.length, agendadas: ok, falhas, resultados });
+  } catch (err) {
+    console.error('[WZ] Erro:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

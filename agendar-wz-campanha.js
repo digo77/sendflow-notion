@@ -14,13 +14,7 @@ import { agendarMensagemTexto, agendarMensagemImagem } from './sendflow.js';
 // ─── Configuração da campanha ───────────────────────────────────────────────
 const RELEASE_ID  = '4eGjwrl02ThSiFSVBmFs'; // Cookie Sandwich • Aula 21.04 às 19h
 const ACCOUNT_ID  = 'D9ceM3x1pGXTMTH5cDgW';
-const DOMAIN      = process.env.CLOUDFLARE_TUNNEL_DOMAIN || 'sendflow.pixelnrock.com';
-
-// ─── Helper: converte URL do ImageKit em URL com extensão via proxy ─────────
-function imgUrl(imagekitUrl, slug) {
-  const encoded = encodeURIComponent(imagekitUrl);
-  return `https://${DOMAIN}/img/${slug}.jpg?src=${encoded}`;
-}
+// Arquivos renomeados no ImageKit com .jpg — URLs diretas funcionam sem proxy.
 
 // ─── Horários (UTC — Brasília é UTC-3) ─────────────────────────────────────
 // Webinário: terça 21/04/2026 às 20h Brasília
@@ -32,10 +26,7 @@ const mensagens = [
     id: 'WZ2',
     tipo: 'imagem',
     scheduledTo: '2026-04-18T13:00:00.000Z', // sáb 18/04 10h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-03-mh3ou',
-      'wz2-carrossel-lucrar'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-03-mh3ou.jpg',
     mensagem: `*QUANDO ME PERGUNTAM SE DÁ PRA LUCRAR COM COOKIE...* 🍪🔥
 
 Eu poderia responder em uma palavra.
@@ -53,10 +44,7 @@ https://www.instagram.com/p/DWka-PgDSJW/`,
     id: 'WZ3',
     tipo: 'imagem',
     scheduledTo: '2026-04-19T13:00:00.000Z', // dom 19/04 10h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-04-zpb08',
-      'wz3-carrossel-mentiras'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-04-zpb08.jpg',
     mensagem: `*A maioria das confeiteiras sabe FAZER um bom cookie.* 🍪🔥
 
 O problema não é a receita.
@@ -78,10 +66,7 @@ https://www.instagram.com/p/DWm3HeljYZL/`,
     id: 'WZ4',
     tipo: 'imagem',
     scheduledTo: '2026-04-20T11:00:00.000Z', // seg 20/04 08h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-05-ve7v5',
-      'wz4-carrossel-comecar'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-05-ve7v5.jpg',
     mensagem: `*Você trabalha o dia inteiro na cozinha e no final do mês o dinheiro some.* 😔
 
 Isso tem nome: *produzir muito e precificar ERRADO.*
@@ -107,10 +92,7 @@ https://www.instagram.com/p/DW4uPHWltaL/`,
     id: 'WZ5',
     tipo: 'imagem',
     scheduledTo: '2026-04-20T13:00:00.000Z', // seg 20/04 10h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/chefaureo/depoimentos/depoimento-chef-aureo-06-ik8ho?updatedAt=1775074437302',
-      'wz5-depoimento-faculdade'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/chefaureo/depoimentos/depoimento-chef-aureo-06-ik8ho.jpg',
     mensagem: `*Ela levou 20 cookies pra faculdade.* 🍪
 
 Vendeu TUDO na primeira aula.
@@ -129,10 +111,7 @@ Na terça a gente te mostra como chegar lá. 👊🏻`,
     id: 'WZ6',
     tipo: 'imagem',
     scheduledTo: '2026-04-20T15:00:00.000Z', // seg 20/04 12h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-02-pwd31',
-      'wz6-carrossel-autoridade'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-02-pwd31.jpg',
     mensagem: `*VOCÊ SABE QUANTO CUSTA FAZER 1 COOKIE?* 🍪👀
 
 A maioria das confeiteiras chuta. E esse chute custa CARO.
@@ -165,10 +144,7 @@ https://www.instagram.com/reel/DSV9CqbDQD-/`,
     id: 'WZ7',
     tipo: 'imagem',
     scheduledTo: '2026-04-20T17:00:00.000Z', // seg 20/04 14h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/chefaureo/depoimentos/depoimento-chef-aureo-011-d5qug?updatedAt=1775074436803',
-      'wz7-depoimento-eduarda'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/chefaureo/depoimentos/depoimento-chef-aureo-011-d5qug.jpg',
     mensagem: `*ELA DEIXOU O EMPREGO DE CONTADORA PRA CUIDAR DA FILHA.* 🤍
 
 Não foi fácil. A renda sumiu. A rotina virou de cabeça pra baixo.
@@ -199,10 +175,7 @@ Até lá.`,
     id: 'WZ8',
     tipo: 'imagem',
     scheduledTo: '2026-04-19T12:00:00.000Z', // dom 19/04 09h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-01-6e3jq',
-      'wz8-carrossel-domingo'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-1000,q-80,f-jpg/chefaureo/cookie-sandwich/carrossel-01-6e3jq.jpg',
     mensagem: `*TERÇA-FEIRA TEM AULÃO AO VIVO.* 🔥😍
 
 E antes de chegar lá, deixa eu te contar o que você vai sair sabendo depois dessa aula.
@@ -227,10 +200,7 @@ https://www.instagram.com/reel/DSBOOkJDYlR/`,
     id: 'WZ9',
     tipo: 'imagem',
     scheduledTo: '2026-04-20T19:00:00.000Z', // seg 20/04 16h Brasília
-    imageUrl: imgUrl(
-      'https://ik.imagekit.io/pixelnrock/tr:w-600,q-80,f-jpg/chefaureo/cookie-dubai-01-21fto',
-      'wz9-cookie-dubai'
-    ),
+    imageUrl: 'https://ik.imagekit.io/pixelnrock/tr:w-600,q-80,f-jpg/chefaureo/cookie-dubai-01-21fto.jpg',
     mensagem: `*AMANHÃ TEM AULÃO E EU PRECISO TE CONTAR UMA COISA.* 🍪🔥
 
 _Isso é só o começo do que o Chef vai te mostrar._
