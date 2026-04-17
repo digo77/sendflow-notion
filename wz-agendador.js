@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { atualizarRelease, listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
+import { listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
@@ -31,50 +31,36 @@ async function salvar(lista) {
 }
 
 /**
- * Executa uma entrada no Sendflow:
- *   - renomear_grupo: atualiza o release (template) + todos os grupos
- *     individuais já criados
- *   - atualizar_descricao: idem, mas descrição
- *
- * O template é atualizado pra grupos FUTUROS; os grupos existentes recebem
- * PUT individual pra propagar a mudança.
+ * Executa uma entrada no Sendflow — atualiza SÓ os grupos individuais,
+ * sem tocar no release. Assim evitamos o comportamento nativo do Sendflow
+ * que enfileira uma cascata de "ações agendadas" (trocar configuração,
+ * tornar administradores, etc.) quando algo muda no release.
  */
 async function executarAcao(entrada) {
-  if (entrada.tipoAcao === 'renomear_grupo') {
-    // 1. Atualiza o template do release
-    await atualizarRelease({ releaseId: entrada.releaseId, nome: entrada.payload, nomeGrupo: entrada.payload });
-    // 2. Atualiza os grupos já criados
-    const { data: grupos } = await listarGruposDoRelease(entrada.releaseId);
-    const detalhes = [];
-    for (const g of grupos || []) {
-      try {
-        await atualizarGrupo(g.id, { name: entrada.payload });
-        detalhes.push({ grupoId: g.id, ok: true });
-      } catch (err) {
-        const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
-        detalhes.push({ grupoId: g.id, ok: false, erro: msg });
-      }
+  const campo = entrada.tipoAcao === 'renomear_grupo' ? 'name'
+              : entrada.tipoAcao === 'atualizar_descricao' ? 'description'
+              : null;
+  if (!campo) throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
+
+  const { data: grupos } = await listarGruposDoRelease(entrada.releaseId);
+  if (!grupos?.length) throw new Error('Nenhum grupo criado nesse release ainda');
+
+  const detalhes = [];
+  for (const g of grupos) {
+    try {
+      await atualizarGrupo(g.id, { [campo]: entrada.payload });
+      detalhes.push({ grupoId: g.id, nome: g.name, ok: true });
+    } catch (err) {
+      const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+      detalhes.push({ grupoId: g.id, nome: g.name, ok: false, erro: msg });
     }
-    return { gruposAtualizados: detalhes };
   }
 
-  if (entrada.tipoAcao === 'atualizar_descricao') {
-    await atualizarRelease({ releaseId: entrada.releaseId, descricao: entrada.payload });
-    const { data: grupos } = await listarGruposDoRelease(entrada.releaseId);
-    const detalhes = [];
-    for (const g of grupos || []) {
-      try {
-        await atualizarGrupo(g.id, { description: entrada.payload });
-        detalhes.push({ grupoId: g.id, ok: true });
-      } catch (err) {
-        const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
-        detalhes.push({ grupoId: g.id, ok: false, erro: msg });
-      }
-    }
-    return { gruposAtualizados: detalhes };
+  const falhas = detalhes.filter((d) => !d.ok).length;
+  if (falhas === detalhes.length) {
+    throw new Error(`Todas as ${detalhes.length} tentativas falharam. Primeira: ${detalhes[0].erro}`);
   }
-
-  throw new Error(`tipoAcao desconhecido: ${entrada.tipoAcao}`);
+  return { gruposAtualizados: detalhes };
 }
 
 /**
