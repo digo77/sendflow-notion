@@ -245,20 +245,27 @@ export async function lerCache() {
   }
 }
 
-// ─── Config (URL do Notion salva) ─────────────────────────────────────────
-export async function salvarConfigUrl(url) {
-  await mkdir(dirname(CONFIG_PATH), { recursive: true });
-  await writeFile(CONFIG_PATH, JSON.stringify({ notionUrl: url }, null, 2), 'utf-8');
-}
-
-export async function lerConfigUrl() {
+// ─── Config (URL do Notion + variáveis de substituição) ───────────────────
+export async function lerConfig() {
   try {
     const raw = await readFile(CONFIG_PATH, 'utf-8');
-    return JSON.parse(raw)?.notionUrl || null;
+    return JSON.parse(raw);
   } catch {
-    return null;
+    return {};
   }
 }
+
+export async function salvarConfig(patch) {
+  const atual = await lerConfig();
+  const novo = { ...atual, ...patch };
+  await mkdir(dirname(CONFIG_PATH), { recursive: true });
+  await writeFile(CONFIG_PATH, JSON.stringify(novo, null, 2), 'utf-8');
+  return novo;
+}
+
+// Retrocompat — funções antigas
+export async function salvarConfigUrl(url) { return salvarConfig({ notionUrl: url }); }
+export async function lerConfigUrl() { const c = await lerConfig(); return c?.notionUrl || null; }
 
 // ─── Sync completo: busca, normaliza, salva cache ─────────────────────────
 export async function sincronizarComNotion(urlOrId) {

@@ -29,9 +29,11 @@ import {
   iniciarCronsWebinario,
 } from './webinario.js';
 import { wzPreview, agendarSequenciaWZ, getSequencia } from './wz-sequencia.js';
-import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl } from './wz-notion.js';
+import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl, lerConfig, salvarConfig } from './wz-notion.js';
+import { aplicarVariaveis, formatarDataBR } from './wz-variaveis.js';
 import { validarSequencia } from './wz-validar.js';
 import { listarHistorico } from './wz-historico.js';
+import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado } from './wz-agendador.js';
 import { testarConexao as testarSwitchy } from './switchy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -447,15 +449,55 @@ app.get('/api/wz/mensagens', async (_req, res) => {
 app.get('/api/wz/sync-status', async (_req, res) => {
   try {
     const cache = await lerCache();
-    const notionUrl = await lerConfigUrl();
+    const cfg = await lerConfig();
     res.json({
-      notionUrl,
+      notionUrl: cfg.notionUrl || null,
+      nomeBase: cfg.nomeBase || '',
+      linkInscricao: cfg.linkInscricao || '',
+      horaWebinario: cfg.horaWebinario || 20,
       syncedAt: cache?.syncedAt || null,
       totalMensagens: cache?.mensagens?.length || 0,
       sourceUrl: cache?.sourceUrl || null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Salva config das variáveis (nome_base, link_inscricao, hora_webinario)
+app.post('/api/wz/config', async (req, res) => {
+  try {
+    const patch = {};
+    const { nomeBase, linkInscricao, horaWebinario, notionUrl } = req.body || {};
+    if (nomeBase !== undefined) patch.nomeBase = nomeBase;
+    if (linkInscricao !== undefined) patch.linkInscricao = linkInscricao;
+    if (horaWebinario !== undefined) patch.horaWebinario = Number(horaWebinario);
+    if (notionUrl !== undefined) patch.notionUrl = notionUrl;
+    const novo = await salvarConfig(patch);
+    res.json({ ok: true, config: novo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lista agendamentos locais (RN e DS), opcionalmente filtra por status
+app.get('/api/wz/agendados', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const lista = await listarAgendados({ status });
+    res.json(lista);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancela um agendamento local pendente
+app.delete('/api/wz/agendados/:id', async (req, res) => {
+  try {
+    const entrada = await cancelarAgendado(req.params.id);
+    res.json({ ok: true, entrada });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -547,17 +589,22 @@ app.get('/api/wz/validar', async (req, res) => {
   }
 });
 
-// Agenda toda a sequência WZ no Sendflow
+// Agenda uma ou mais fases da sequência.
+// Fases WZ/IN → Sendflow nativo (agendamento de mensagem)
+// Fases RN/DS → agendador local (cron interno dispara no horário)
+//
+// Body: { releaseId, accountId, dataWebinario, fases: ['WZ','RN','DS','IN'], ignorarValidacao? }
 app.post('/api/wz/agendar', async (req, res) => {
-  const { releaseId, accountId, dataWebinario, ignorarValidacao } = req.body;
+  const { releaseId, accountId, dataWebinario, fases, ignorarValidacao } = req.body;
   if (!releaseId || !dataWebinario) {
     return res.status(400).json({ error: 'releaseId e dataWebinario são obrigatórios' });
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
     return res.status(400).json({ error: 'dataWebinario deve estar no formato YYYY-MM-DD' });
   }
+  const fasesAlvo = fases?.length ? fases : ['WZ', 'RN', 'DS', 'IN'];
   try {
-    // 1. Validação pré-agendamento (bloqueante, salvo se ignorarValidacao=true)
+    // 1. Validação pré-agendamento (só bloqueante se tiver fases de mensagem)
     const seq = await getSequencia();
     const validacao = await validarSequencia({ mensagens: seq, dataWebinario });
     if (!validacao.ok && !ignorarValidacao) {
@@ -567,23 +614,74 @@ app.post('/api/wz/agendar', async (req, res) => {
       });
     }
 
-    // 2. Agendamento
-    const resultados = await agendarSequenciaWZ({
-      releaseId,
-      accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
-      dataWebinario,
-    });
-    const ok = resultados.filter((r) => r.ok).length;
-    const falhas = resultados.filter((r) => !r.ok).length;
-    console.log(`[WZ] ${ok} agendadas, ${falhas} falhas | campanha ${releaseId} | webinário ${dataWebinario}`);
+    // 2. Divide por tipo de execução
+    const fasesMensagens = fasesAlvo.filter((f) => ['WZ', 'IN'].includes(f));
+    const fasesLocais = fasesAlvo.filter((f) => ['RN', 'DS'].includes(f));
 
-    // 3. Registra no histórico (implementado a seguir)
+    const resultadosMensagens = [];
+    const resultadosLocais = [];
+
+    // 2a. Mensagens (WZ/IN) via Sendflow
+    if (fasesMensagens.length) {
+      const r = await agendarSequenciaWZ({
+        releaseId,
+        accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+        dataWebinario,
+        fases: fasesMensagens,
+      });
+      resultadosMensagens.push(...r);
+    }
+
+    // 2b. Renames e Descrições via agendador local
+    if (fasesLocais.length) {
+      const cfg = await lerConfig();
+      const vars = {
+        data: formatarDataBR(dataWebinario),
+        hora: cfg.horaWebinario ?? 20,
+        nome_base: cfg.nomeBase || '',
+        link_inscricao: cfg.linkInscricao || '',
+      };
+      const acoes = seq
+        .filter((w) => fasesLocais.includes(w.prefixo))
+        .map((w) => {
+          const [y, m, d] = dataWebinario.split('-').map(Number);
+          const at = new Date(Date.UTC(y, m - 1, d + w.offset, (w.hora ?? 0) + 3, w.min ?? 0)).toISOString();
+          return {
+            id: w.id,
+            prefixo: w.prefixo,
+            tipoAcao: w.tipoAcao,
+            scheduledTo: at,
+            releaseId,
+            accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+            mensagem: aplicarVariaveis(w.mensagem, vars),
+            label: w.label,
+          };
+        });
+      const r = await agendarAcoes(acoes);
+      resultadosLocais.push(...r);
+    }
+
+    const totalResultados = [...resultadosMensagens, ...resultadosLocais];
+    const ok = totalResultados.filter((r) => r.ok).length;
+    const falhas = totalResultados.filter((r) => !r.ok).length;
+    console.log(`[WZ] ${ok} agendadas, ${falhas} falhas | fases ${fasesAlvo.join(',')} | campanha ${releaseId} | webinário ${dataWebinario}`);
+
+    // 3. Registra no histórico
     try {
       const { registrarHistorico } = await import('./wz-historico.js');
-      await registrarHistorico({ releaseId, accountId, dataWebinario, resultados, validacao });
-    } catch {} // se o módulo não existir ainda, segue em frente
+      await registrarHistorico({ releaseId, accountId, dataWebinario, resultados: totalResultados, validacao, fases: fasesAlvo });
+    } catch {}
 
-    res.json({ ok: true, total: resultados.length, agendadas: ok, falhas, resultados, validacao });
+    res.json({
+      ok: true,
+      fases: fasesAlvo,
+      total: totalResultados.length,
+      agendadas: ok,
+      falhas,
+      mensagens: resultadosMensagens,
+      locais: resultadosLocais,
+      validacao,
+    });
   } catch (err) {
     console.error('[WZ] Erro:', err.message);
     res.status(500).json({ error: err.message });
@@ -666,6 +764,18 @@ cron.schedule('0 */2 * * *', async () => {
 // ─── Cron: backup todo dia à meia-noite ───
 cron.schedule('0 0 * * *', () => {
   runBackup().catch((err) => console.error('[Cron] Erro no backup:', err.message));
+});
+
+// ─── Cron: dispara renames e descrições agendados (a cada minuto) ───
+cron.schedule('* * * * *', async () => {
+  try {
+    const r = await executarPendentes();
+    if (r.executadas > 0 || r.falhas > 0) {
+      console.log(`[Cron WZ-Agendador] ${r.executadas} executadas, ${r.falhas} falhas`);
+    }
+  } catch (err) {
+    console.error('[Cron WZ-Agendador] Erro:', err.message);
+  }
 });
 
 // ─── Primeiro boot: sync campanhas + primeiro ciclo + cron webinário ───

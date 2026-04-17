@@ -663,6 +663,32 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
+    <!-- Variáveis -->
+    <div class="table-wrap" style="margin-bottom:20px">
+      <div class="table-header">
+        <h3>Variáveis da campanha</h3>
+        <span style="font-size:12px;color:var(--text2)">Usadas nas mensagens como <code>{data}</code>, <code>{hora}</code>, <code>{nome_base}</code>, <code>{link_inscricao}</code></span>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group" style="margin:0">
+            <label>Nome base do produto ({nome_base})</label>
+            <input type="text" id="wz-var-nomebase" placeholder="Cookie Sandwich" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Hora do webinário ({hora})</label>
+            <input type="number" id="wz-var-hora" min="0" max="23" placeholder="20" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+          </div>
+        </div>
+        <div class="form-group" style="margin:0 0 12px 0">
+          <label>Link de inscrição ({link_inscricao})</label>
+          <input type="url" id="wz-var-link" placeholder="https://link.chefaureomagalhaes.com/universo" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none">
+        </div>
+        <button class="btn btn-secondary" onclick="wzSalvarConfig()">💾 Salvar variáveis</button>
+        <span style="font-size:12px;color:var(--text2);margin-left:12px">A data vem da "Data do Webinário" abaixo automaticamente.</span>
+      </div>
+    </div>
+
     <!-- Formulário -->
     <div class="table-wrap" style="margin-bottom:20px">
       <div class="table-header">
@@ -683,11 +709,6 @@ tr:hover td { background: var(--surface2); }
         </div>
         <button class="btn btn-secondary" onclick="wzPreview()" style="margin-right:8px">🔍 Ver preview</button>
         <button class="btn btn-secondary" onclick="wzValidar()" style="margin-right:8px">✅ Validar</button>
-        <button class="btn btn-primary" id="btn-wz-agendar" onclick="wzAgendar()" disabled>🚀 Agendar mensagens (WZ + IN)</button>
-        <div style="margin-top:12px;font-size:11px;color:var(--text2);padding:8px 12px;background:var(--surface2);border-radius:6px">
-          💡 O agendamento dispara as <strong>Fase 1 (WZ)</strong> e <strong>Fase 4 (IN)</strong> no Sendflow.<br>
-          Os <strong>Renames (RN)</strong> e <strong>Descrições (DS)</strong> são mostrados no preview mas a execução automática deles vem na próxima versão.
-        </div>
         <div id="wz-validacao-resultado" style="margin-top:16px"></div>
       </div>
     </div>
@@ -715,16 +736,28 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
 
-    <!-- Preview da sequência -->
+    <!-- Preview da sequência em sanfona (4 fases) -->
     <div id="wz-preview-wrap" style="display:none">
-      <div class="table-wrap" style="margin-bottom:20px">
-        <div class="table-header">
-          <h3>Preview do Agendamento</h3>
-          <span id="wz-preview-legenda" style="font-size:12px;color:var(--text2)"></span>
-        </div>
-        <div id="wz-preview-container" style="background:#E5DDD5;padding:0"></div>
+      <div style="margin-bottom:12px;font-size:13px;color:var(--text2);display:flex;justify-content:space-between;align-items:center">
+        <span id="wz-preview-legenda">—</span>
+        <span>Clique no cabeçalho pra expandir cada fase</span>
       </div>
+      <div id="wz-fases-container"></div>
     </div>
+
+    <style>
+      .wz-fase-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+      .wz-fase-header { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background .15s; user-select: none; }
+      .wz-fase-header:hover { background: var(--surface2); }
+      .wz-fase-body { display: none; border-top: 1px solid var(--border); }
+      .wz-fase-card.open .wz-fase-body { display: block; }
+      .wz-fase-chevron { transition: transform .2s; font-size: 14px; color: var(--text2); }
+      .wz-fase-card.open .wz-fase-chevron { transform: rotate(90deg); }
+      .wz-fase-info { flex: 1 }
+      .wz-fase-nome { font-weight: 700; font-size: 15px }
+      .wz-fase-sub { font-size: 12px; color: var(--text2); margin-top: 3px }
+      .wz-fase-acoes { display: flex; gap: 8px; align-items: center }
+    </style>
 
     <!-- Resultado do agendamento -->
     <div id="wz-resultado-wrap" style="display:none">
@@ -1511,19 +1544,18 @@ function wzFormatarWhatsapp(texto) {
 }
 
 const FASES_INFO = {
-  WZ: { nome: '🔥 Fase 1 · Aquecimento', descricao: 'Mensagens pro grupo antes do webinário', cor: '#F97316' },
-  RN: { nome: '🏷️ Fase 2 · Renames do Grupo', descricao: 'Nomes do grupo conforme a semana avança', cor: '#8B5CF6' },
-  DS: { nome: '📝 Fase 3 · Descrições do Grupo', descricao: 'Texto embaixo do nome do grupo', cor: '#06B6D4' },
-  IN: { nome: '🛒 Fase 4 · Inscrições Abertas', descricao: 'Mensagens pós-webinário durante o carrinho', cor: '#16A34A' },
+  WZ: { nome: '🔥 Fase 1 · Aquecimento', descricao: 'Mensagens pro grupo antes do webinário', cor: '#F97316', acao: 'Agendar mensagens no Sendflow' },
+  RN: { nome: '🏷️ Fase 2 · Renames do Grupo', descricao: 'Nomes do grupo conforme a semana avança', cor: '#8B5CF6', acao: 'Agendar renames' },
+  DS: { nome: '📝 Fase 3 · Descrições do Grupo', descricao: 'Texto embaixo do nome do grupo', cor: '#06B6D4', acao: 'Agendar descrições' },
+  IN: { nome: '🛒 Fase 4 · Inscrições Abertas', descricao: 'Mensagens pós-webinário durante o carrinho', cor: '#16A34A', acao: 'Agendar mensagens de inscrição' },
 };
 
 async function wzPreview() {
-  const releaseId = document.getElementById('wz-release-id').value;
   const data = document.getElementById('wz-data-webinario').value;
   if (!data) { toast('Selecione a data do webinário'); return; }
 
   const wrap = document.getElementById('wz-preview-wrap');
-  const container = document.getElementById('wz-preview-container');
+  const container = document.getElementById('wz-fases-container');
   container.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Carregando...</div>';
   wrap.style.display = 'block';
 
@@ -1537,25 +1569,35 @@ async function wzPreview() {
     container.innerHTML = Object.entries(FASES_INFO).map(([prefixo, info]) => {
       const arr = porFase[prefixo];
       if (!arr.length) return '';
+      const primeiroHora = arr[0]?.horaLocal || '';
+      const ultimoHora = arr[arr.length - 1]?.horaLocal || '';
       return `
-        <div style="border-bottom:3px solid ${info.cor};background:#F9FAFB">
-          <div style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:#fff">
-            <div>
-              <div style="font-weight:700;font-size:14px;color:${info.cor}">${escHtml(info.nome)}</div>
-              <div style="font-size:11px;color:var(--text2);margin-top:2px">${escHtml(info.descricao)} · ${arr.length} itens</div>
+        <div class="wz-fase-card" data-fase="${prefixo}">
+          <div class="wz-fase-header" onclick="wzToggleFase('${prefixo}')">
+            <div class="wz-fase-info">
+              <div class="wz-fase-nome" style="color:${info.cor}"><span class="wz-fase-chevron">▶</span> ${escHtml(info.nome)} · ${arr.length} itens</div>
+              <div class="wz-fase-sub">${escHtml(info.descricao)} · ${escHtml(primeiroHora)} → ${escHtml(ultimoHora)}</div>
+            </div>
+            <div class="wz-fase-acoes" onclick="event.stopPropagation()">
+              <button class="btn btn-primary btn-sm" id="btn-fase-${prefixo}" onclick="wzAgendarFase('${prefixo}')">🚀 ${escHtml(info.acao)}</button>
             </div>
           </div>
+          <div class="wz-fase-body">
+            ${arr.map(m => wzRenderItem(m, info.cor)).join('')}
+          </div>
         </div>
-        ${arr.map(m => wzRenderItem(m, info.cor)).join('')}
       `;
     }).filter(Boolean).join('');
 
     document.getElementById('wz-preview-legenda').textContent = `${items.length} itens · webinário ${new Date(data + 'T00:00:00-03:00').toLocaleDateString('pt-BR')}`;
-    document.getElementById('btn-wz-agendar').disabled = !releaseId;
-    if (!releaseId) toast('Selecione uma campanha para agendar');
   } catch (e) {
     container.innerHTML = `<div style="color:var(--danger);padding:16px">${escHtml(e.message)}</div>`;
   }
+}
+
+function wzToggleFase(prefixo) {
+  const card = document.querySelector(`.wz-fase-card[data-fase="${prefixo}"]`);
+  if (card) card.classList.toggle('open');
 }
 
 function wzRenderItem(m, corFase) {
@@ -1610,61 +1652,67 @@ function wzRenderItem(m, corFase) {
   `;
 }
 
-async function wzAgendar() {
+async function wzAgendarFase(prefixo) {
   const releaseId = document.getElementById('wz-release-id').value;
   const data = document.getElementById('wz-data-webinario').value;
   if (!releaseId) { toast('Selecione uma campanha'); return; }
   if (!data) { toast('Selecione a data do webinário'); return; }
 
-  const btn = document.getElementById('btn-wz-agendar');
+  const info = FASES_INFO[prefixo];
+  if (!confirm(`Agendar ${info.nome}?\n\nVai disparar os itens dessa fase pro horário calculado com base em ${data}.`)) return;
+
+  const btn = document.getElementById('btn-fase-' + prefixo);
+  const textoOriginal = btn.textContent;
   btn.disabled = true;
   btn.textContent = '⏳ Agendando...';
 
   const wrap = document.getElementById('wz-resultado-wrap');
   const lista = document.getElementById('wz-resultado-lista');
   wrap.style.display = 'block';
-  lista.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Aguarde, agendando mensagens no Sendflow...</div>';
+  lista.innerHTML = '<div class="loading-overlay"><div class="spinner"></div> Agendando ' + escHtml(info.nome) + '...</div>';
 
   try {
     const res = await api('/api/wz/agendar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ releaseId, dataWebinario: data }),
+      body: JSON.stringify({ releaseId, dataWebinario: data, fases: [prefixo] }),
     });
 
-    // Validação falhou - mostra erros e sai
     if (res.error && res.validacao) {
       renderValidacao(res.validacao);
-      lista.innerHTML = '<div style="padding:16px;color:var(--danger)">Agendamento bloqueado. Corrija os erros acima e tente novamente.</div>';
+      lista.innerHTML = '<div style="padding:16px;color:var(--danger)">Agendamento bloqueado. Corrija os erros acima.</div>';
       toast('❌ Validação falhou');
-      btn.disabled = false;
-      btn.textContent = '🚀 Agendar mensagens no Sendflow';
+      btn.disabled = false; btn.textContent = textoOriginal;
       return;
     }
 
+    const all = [...(res.mensagens || []), ...(res.locais || [])];
     document.getElementById('wz-resultado-titulo').textContent =
-      `Resultado: ${res.agendadas}/${res.total} agendadas ✅  ${res.falhas > 0 ? res.falhas + ' com falha ❌' : ''}`;
+      `${info.nome}: ${res.agendadas}/${res.total} agendadas ${res.falhas ? '· ' + res.falhas + ' falhas ❌' : '✅'}`;
 
-    lista.innerHTML = res.resultados.map(r => `
+    lista.innerHTML = all.map(r => `
       <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span style="font-weight:700;min-width:40px">${escHtml(r.id)}</span>
+        <span style="font-weight:700;min-width:50px">${escHtml(r.id)}</span>
         <span>${r.ok ? '✅' : '❌'}</span>
-        <span style="font-size:12px;color:var(--text2);font-family:monospace">${r.ok ? r.scheduledTo : escHtml(r.erro)}</span>
+        <span style="font-size:12px;color:var(--text2);font-family:monospace">${r.ok ? (r.scheduledTo || '—') : escHtml(r.erro || 'erro')}</span>
       </div>
     `).join('');
 
-    if (res.agendadas === res.total) {
-      toast(`✅ ${res.agendadas} mensagens agendadas no Sendflow!`);
+    if (res.agendadas === res.total && res.total > 0) {
+      toast(`✅ ${res.agendadas} itens de ${info.nome} agendados!`);
+    } else if (res.total === 0) {
+      toast(`Nada pra agendar na ${info.nome}`);
     } else {
-      toast(`⚠️ ${res.agendadas} ok, ${res.falhas} falhas`);
+      toast(`⚠️ ${res.agendadas} ok · ${res.falhas} falhas`);
     }
+    wzCarregarHistorico();
   } catch (e) {
     lista.innerHTML = `<p style="color:var(--danger)">${escHtml(e.message)}</p>`;
     toast('Erro: ' + e.message);
   }
 
   btn.disabled = false;
-  btn.textContent = '🚀 Agendar mensagens no Sendflow';
+  btn.textContent = textoOriginal;
 }
 
 async function wzCarregarSyncStatus() {
@@ -1673,15 +1721,34 @@ async function wzCarregarSyncStatus() {
     const el = document.getElementById('wz-sync-status');
     const input = document.getElementById('wz-notion-url');
     if (s.notionUrl && !input.value) input.value = s.notionUrl;
+    // Popula variáveis salvas
+    if (s.nomeBase) document.getElementById('wz-var-nomebase').value = s.nomeBase;
+    if (s.linkInscricao) document.getElementById('wz-var-link').value = s.linkInscricao;
+    if (s.horaWebinario) document.getElementById('wz-var-hora').value = s.horaWebinario;
     if (s.syncedAt) {
       const when = new Date(s.syncedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
-      el.textContent = `${s.totalMensagens} mensagens · última sync: ${when}`;
+      el.textContent = `${s.totalMensagens} itens · última sync: ${when}`;
       el.style.color = 'var(--good)';
     } else {
       el.textContent = 'Nunca sincronizado · clique em "Sincronizar do Notion"';
       el.style.color = 'var(--warn)';
     }
   } catch {}
+}
+
+async function wzSalvarConfig() {
+  const nomeBase = document.getElementById('wz-var-nomebase').value.trim();
+  const linkInscricao = document.getElementById('wz-var-link').value.trim();
+  const hora = document.getElementById('wz-var-hora').value;
+  const horaWebinario = hora ? Number(hora) : undefined;
+  try {
+    const res = await api('/api/wz/config', { method: 'POST', body: JSON.stringify({ nomeBase, linkInscricao, horaWebinario }) });
+    if (res.ok) {
+      toast('✅ Variáveis salvas');
+      // Atualiza preview se já estiver aberto
+      if (document.getElementById('wz-data-webinario').value) wzPreview();
+    } else toast('Erro: ' + (res.error || 'falha'));
+  } catch (e) { toast('Erro: ' + e.message); }
 }
 
 async function wzSyncNotion() {

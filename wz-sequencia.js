@@ -9,7 +9,8 @@
  * Todas as horas são em Brasília (UTC-3).
  */
 import { agendarMensagemTexto, agendarMensagemImagem } from './sendflow.js';
-import { lerCache } from './wz-notion.js';
+import { lerCache, lerConfig } from './wz-notion.js';
+import { aplicarVariaveis, formatarDataBR } from './wz-variaveis.js';
 
 // ─── Carrega a sequência do cache ────────────────────────────────────────
 export async function getSequencia() {
@@ -25,9 +26,21 @@ function scheduledTo(dataWebinario, offsetDias, hora, min) {
   return base.toISOString();
 }
 
+/** Constrói o objeto de variáveis a partir da config + data do webinário. */
+async function resolverVariaveis(dataWebinario, overrides = {}) {
+  const cfg = await lerConfig();
+  return {
+    data: formatarDataBR(dataWebinario),
+    hora: overrides.hora ?? cfg.horaWebinario ?? 20,
+    nome_base: overrides.nome_base ?? cfg.nomeBase ?? '',
+    link_inscricao: overrides.link_inscricao ?? cfg.linkInscricao ?? '',
+  };
+}
+
 // ─── Preview (sem agendar) ───────────────────────────────────────────────
 export async function wzPreview(dataWebinario) {
   const seq = await getSequencia();
+  const vars = await resolverVariaveis(dataWebinario);
   return seq.map((wz) => {
     const at = scheduledTo(dataWebinario, wz.offset, wz.hora ?? 0, wz.min ?? 0);
     const horaLocal = new Date(at).toLocaleString('pt-BR', {
@@ -44,7 +57,8 @@ export async function wzPreview(dataWebinario) {
       dia: wz.dia,
       scheduledTo: at,
       horaLocal,
-      mensagem: wz.mensagem,
+      mensagem: aplicarVariaveis(wz.mensagem, vars),
+      mensagemTemplate: wz.mensagem, // preserva original pra debug
       imageUrl: wz.imageUrl || null,
     };
   });
@@ -66,9 +80,12 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
   let alvo = seq.filter((w) => w.tipoAcao === 'enviar_mensagem' || !w.tipoAcao);
   if (fases?.length) alvo = alvo.filter((w) => fases.includes(w.prefixo));
 
+  const vars = await resolverVariaveis(dataWebinario);
+
   const resultados = [];
   for (const wz of alvo) {
     const at = scheduledTo(dataWebinario, wz.offset, wz.hora ?? 0, wz.min ?? 0);
+    const mensagemFinal = aplicarVariaveis(wz.mensagem, vars);
     try {
       let res;
       if (wz.tipo === 'imagem' && wz.imageUrl) {
@@ -76,7 +93,7 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
           releaseId,
           accountId,
           imageUrl: wz.imageUrl,
-          caption: wz.mensagem,
+          caption: mensagemFinal,
           scheduledTo: at,
           shippingSpeed: 'none',
         });
@@ -84,7 +101,7 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
         res = await agendarMensagemTexto({
           releaseId,
           accountId,
-          mensagem: wz.mensagem,
+          mensagem: mensagemFinal,
           scheduledTo: at,
           shippingSpeed: 'none',
         });
