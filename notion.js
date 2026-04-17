@@ -104,6 +104,8 @@ export async function buscarCampanhas() {
       instancia: p['Instância']?.select?.name || '',
       status: p['Status']?.select?.name || '',
       ultimaSync: p['Última Sync']?.date?.start || null,
+      createdTime: page.created_time,
+      notionUrl: page.url,
     };
   });
 }

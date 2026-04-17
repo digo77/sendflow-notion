@@ -27,7 +27,8 @@ import {
   reenviarNotificacao,
   iniciarCronsWebinario,
 } from './webinario.js';
-import { wzPreview, agendarSequenciaWZ, WZ_SEQUENCIA } from './wz-sequencia.js';
+import { wzPreview, agendarSequenciaWZ, getSequencia } from './wz-sequencia.js';
+import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl } from './wz-notion.js';
 import { testarConexao as testarSwitchy } from './switchy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -343,17 +344,67 @@ app.get('/api/logs', async (_req, res) => {
 // ─── WZ Sequência de Aquecimento ───
 
 // Retorna preview do agendamento sem executar
-app.get('/api/wz/preview', (req, res) => {
+app.get('/api/wz/preview', async (req, res) => {
   const { dataWebinario } = req.query;
   if (!dataWebinario || !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
     return res.status(400).json({ error: 'dataWebinario obrigatório no formato YYYY-MM-DD' });
   }
-  res.json(wzPreview(dataWebinario));
+  try {
+    const items = await wzPreview(dataWebinario);
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Retorna a lista de mensagens WZ (sem agendar)
-app.get('/api/wz/mensagens', (_req, res) => {
-  res.json(WZ_SEQUENCIA.map(({ id, label, tipo, offset, hora, min }) => ({ id, label, tipo, offset, hora, min })));
+app.get('/api/wz/mensagens', async (_req, res) => {
+  try {
+    const seq = await getSequencia();
+    res.json(seq.map(({ id, label, tipo, offset, hora, min, dia }) => ({ id, label, tipo, offset, hora, min, dia })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Estado atual da sincronização com Notion (cache + URL salva)
+app.get('/api/wz/sync-status', async (_req, res) => {
+  try {
+    const cache = await lerCache();
+    const notionUrl = await lerConfigUrl();
+    res.json({
+      notionUrl,
+      syncedAt: cache?.syncedAt || null,
+      totalMensagens: cache?.mensagens?.length || 0,
+      sourceUrl: cache?.sourceUrl || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Sincroniza a sequência WZ lendo a página do Notion
+app.post('/api/wz/sync-notion', async (req, res) => {
+  const { notionUrl } = req.body || {};
+  const url = notionUrl || (await lerConfigUrl());
+  if (!url) return res.status(400).json({ error: 'notionUrl obrigatório (ou salve um padrão antes)' });
+  try {
+    const cache = await sincronizarComNotion(url);
+    await salvarConfigUrl(url);
+    console.log(`[WZ-Sync] ${cache.mensagens.length} mensagens sincronizadas do Notion`);
+    res.json({
+      ok: true,
+      syncedAt: cache.syncedAt,
+      totalMensagens: cache.mensagens.length,
+      notionUrl: url,
+      mensagens: cache.mensagens.map(({ id, label, tipo, dia, hora, min, offset, imageUrl }) => ({
+        id, label, tipo, dia, hora, min, offset, imageUrl,
+      })),
+    });
+  } catch (err) {
+    console.error('[WZ-Sync] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Agenda toda a sequência WZ no Sendflow
