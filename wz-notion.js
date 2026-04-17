@@ -15,16 +15,29 @@ const CONFIG_PATH = join(__dirname, 'data', 'wz-config.json');
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
 // ─── Mapeamento dia da semana → offset relativo à terça do webinário ──────
-const DIA_OFFSET = {
-  Quarta: -6,
-  Quinta: -5,
-  Sexta: -4,
-  Sábado: -3,
-  Sabado: -3,
-  Domingo: -2,
-  Segunda: -1,
-  Terça: 0,
-  Terca: 0,
+// Há dois mapas: o PRE (dias ANTES da terça do webinário) e o POS (dias
+// DEPOIS). Usamos o mapa PRE por padrão, mas se já passamos pela terça
+// dentro de uma mesma fase, os próximos dias usam o mapa POS.
+const DIA_OFFSET_PRE = {
+  Quarta: -6, Quinta: -5, Sexta: -4,
+  Sábado: -3, Sabado: -3,
+  Domingo: -2, Segunda: -1,
+  Terça: 0, Terca: 0,
+};
+
+const DIA_OFFSET_POS = {
+  Terça: 0, Terca: 0,
+  Quarta: 1, Quinta: 2, Sexta: 3,
+  Sábado: 4, Sabado: 4,
+  Domingo: 5, Segunda: 6,
+};
+
+// Mapeamento prefixo → tipoAcao
+const PREFIXO_TIPO_ACAO = {
+  WZ: 'enviar_mensagem',
+  IN: 'enviar_mensagem',
+  RN: 'renomear_grupo',
+  DS: 'atualizar_descricao',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -130,6 +143,9 @@ export async function importarSequenciaDoNotion(urlOrId) {
 
   const mensagens = [];
   let atual = null;
+  // Dentro de cada fase (WZ/RN/DS/IN), tracka se já passamos pela Terça
+  // pra decidir se os próximos dias usam PRE ou POS do offset.
+  let fasePassouTerca = { WZ: false, RN: false, DS: false, IN: false };
 
   for (const block of all) {
     const tipo = block.type;
@@ -138,19 +154,34 @@ export async function importarSequenciaDoNotion(urlOrId) {
       // fecha a mensagem anterior
       if (atual) mensagens.push(atual);
       const texto = richTextToString(block.heading_2.rich_text).trim();
-      // Pattern: "WZ1 · Quarta · Carrossel · Lucrar com cookie"
-      const m = texto.match(/^WZ\s*(\d+)\s*·\s*(\p{L}+)\s*·\s*(.+)$/u);
+      // Pattern: "WZ1 · Quarta · label" | "RN1 · Sábado · label" etc.
+      const m = texto.match(/^(WZ|RN|DS|IN)\s*(\d+)\s*·\s*(\p{L}+)\s*·\s*(.+)$/u);
       if (!m) { atual = null; continue; }
 
-      const dia = m[2].trim();
-      const offset = DIA_OFFSET[dia];
+      const prefixo = m[1];
+      const dia = m[3].trim();
+      // IN sempre é pós-webinário; RN/DS usam contexto; WZ sempre pré
+      let offset;
+      if (prefixo === 'IN') {
+        offset = DIA_OFFSET_POS[dia];
+        if (dia === 'Terça' || dia === 'Terca') fasePassouTerca.IN = true;
+      } else if (prefixo === 'WZ') {
+        offset = DIA_OFFSET_PRE[dia];
+      } else {
+        // RN ou DS: antes da primeira Terça da fase usa PRE, depois POS
+        offset = fasePassouTerca[prefixo] ? DIA_OFFSET_POS[dia] : DIA_OFFSET_PRE[dia];
+        if (dia === 'Terça' || dia === 'Terca') fasePassouTerca[prefixo] = true;
+      }
+
       if (offset === undefined) { atual = null; continue; }
 
       atual = {
-        id: `WZ${m[1]}`,
+        id: `${prefixo}${m[2]}`,
+        prefixo,
+        tipoAcao: PREFIXO_TIPO_ACAO[prefixo],
         dia,
         offset,
-        label: m[3].trim(),
+        label: m[4].trim(),
         tipo: 'texto',
         mensagem: '',
         imageUrl: null,

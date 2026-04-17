@@ -435,7 +435,9 @@ app.get('/api/wz/preview', async (req, res) => {
 app.get('/api/wz/mensagens', async (_req, res) => {
   try {
     const seq = await getSequencia();
-    res.json(seq.map(({ id, label, tipo, offset, hora, min, dia }) => ({ id, label, tipo, offset, hora, min, dia })));
+    res.json(seq.map(({ id, label, tipo, tipoAcao, prefixo, offset, hora, min, dia }) => ({
+      id, label, tipo, tipoAcao: tipoAcao || 'enviar_mensagem', prefixo: prefixo || 'WZ', offset, hora, min, dia,
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

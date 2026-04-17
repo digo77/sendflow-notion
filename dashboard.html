@@ -683,7 +683,11 @@ tr:hover td { background: var(--surface2); }
         </div>
         <button class="btn btn-secondary" onclick="wzPreview()" style="margin-right:8px">🔍 Ver preview</button>
         <button class="btn btn-secondary" onclick="wzValidar()" style="margin-right:8px">✅ Validar</button>
-        <button class="btn btn-primary" id="btn-wz-agendar" onclick="wzAgendar()" disabled>🚀 Agendar mensagens no Sendflow</button>
+        <button class="btn btn-primary" id="btn-wz-agendar" onclick="wzAgendar()" disabled>🚀 Agendar mensagens (WZ + IN)</button>
+        <div style="margin-top:12px;font-size:11px;color:var(--text2);padding:8px 12px;background:var(--surface2);border-radius:6px">
+          💡 O agendamento dispara as <strong>Fase 1 (WZ)</strong> e <strong>Fase 4 (IN)</strong> no Sendflow.<br>
+          Os <strong>Renames (RN)</strong> e <strong>Descrições (DS)</strong> são mostrados no preview mas a execução automática deles vem na próxima versão.
+        </div>
         <div id="wz-validacao-resultado" style="margin-top:16px"></div>
       </div>
     </div>
@@ -1506,6 +1510,13 @@ function wzFormatarWhatsapp(texto) {
     .replace(/\n/g, '<br>');
 }
 
+const FASES_INFO = {
+  WZ: { nome: '🔥 Fase 1 · Aquecimento', descricao: 'Mensagens pro grupo antes do webinário', cor: '#F97316' },
+  RN: { nome: '🏷️ Fase 2 · Renames do Grupo', descricao: 'Nomes do grupo conforme a semana avança', cor: '#8B5CF6' },
+  DS: { nome: '📝 Fase 3 · Descrições do Grupo', descricao: 'Texto embaixo do nome do grupo', cor: '#06B6D4' },
+  IN: { nome: '🛒 Fase 4 · Inscrições Abertas', descricao: 'Mensagens pós-webinário durante o carrinho', cor: '#16A34A' },
+};
+
 async function wzPreview() {
   const releaseId = document.getElementById('wz-release-id').value;
   const data = document.getElementById('wz-data-webinario').value;
@@ -1519,30 +1530,84 @@ async function wzPreview() {
   try {
     const items = await api(`/api/wz/preview?dataWebinario=${data}`);
 
-    container.innerHTML = items.map(m => `
-      <div style="display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start">
-        <div style="flex-shrink:0;width:80px">
-          <div style="font-weight:700;font-size:13px;color:var(--accent)">${escHtml(m.id)}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:'DM Mono',monospace">${escHtml(m.horaLocal)}</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:4px">${m.tipo === 'imagem' ? '🖼️ Imagem' : '💬 Texto'}</div>
-        </div>
-        <div style="flex:1;max-width:420px">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escHtml(m.label)}</div>
-          <div style="background:#D9FDD3;border-radius:8px;padding:8px 10px;position:relative;box-shadow:0 1px 0.5px rgba(0,0,0,0.13);font-size:13.5px;line-height:1.4;color:#111B21">
-            ${m.imageUrl ? `<img src="${escAttr(m.imageUrl)}" style="width:100%;max-width:380px;border-radius:6px;margin-bottom:6px;display:block" loading="lazy">` : ''}
-            <div style="white-space:normal;word-wrap:break-word">${wzFormatarWhatsapp(m.mensagem || '')}</div>
-            <div style="font-size:10px;color:#667781;text-align:right;margin-top:4px">${escHtml(m.horaLocal.split(', ')[1] || '')}</div>
+    // Agrupa por fase
+    const porFase = { WZ: [], RN: [], DS: [], IN: [] };
+    items.forEach(m => { (porFase[m.prefixo] || porFase.WZ).push(m); });
+
+    container.innerHTML = Object.entries(FASES_INFO).map(([prefixo, info]) => {
+      const arr = porFase[prefixo];
+      if (!arr.length) return '';
+      return `
+        <div style="border-bottom:3px solid ${info.cor};background:#F9FAFB">
+          <div style="padding:12px 18px;display:flex;justify-content:space-between;align-items:center;background:#fff">
+            <div>
+              <div style="font-weight:700;font-size:14px;color:${info.cor}">${escHtml(info.nome)}</div>
+              <div style="font-size:11px;color:var(--text2);margin-top:2px">${escHtml(info.descricao)} · ${arr.length} itens</div>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+        ${arr.map(m => wzRenderItem(m, info.cor)).join('')}
+      `;
+    }).filter(Boolean).join('');
 
-    document.getElementById('wz-preview-legenda').textContent = `${items.length} mensagens · webinário ${new Date(data + 'T00:00:00-03:00').toLocaleDateString('pt-BR')}`;
+    document.getElementById('wz-preview-legenda').textContent = `${items.length} itens · webinário ${new Date(data + 'T00:00:00-03:00').toLocaleDateString('pt-BR')}`;
     document.getElementById('btn-wz-agendar').disabled = !releaseId;
     if (!releaseId) toast('Selecione uma campanha para agendar');
   } catch (e) {
     container.innerHTML = `<div style="color:var(--danger);padding:16px">${escHtml(e.message)}</div>`;
   }
+}
+
+function wzRenderItem(m, corFase) {
+  // Rename e descrição são renderizados diferente (não é balão verde do WhatsApp)
+  if (m.tipoAcao === 'renomear_grupo') {
+    return `
+      <div style="display:flex;gap:14px;padding:12px 18px;border-bottom:1px solid var(--border);align-items:center;background:#fff">
+        <div style="flex-shrink:0;width:80px">
+          <div style="font-weight:700;font-size:13px;color:${corFase}">${escHtml(m.id)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:'DM Mono',monospace">${escHtml(m.horaLocal)}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:4px">🏷️ Rename</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">${escHtml(m.label)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:13px;background:#F3F4F6;padding:6px 10px;border-radius:6px;border:1px dashed var(--border)">${escHtml(m.mensagem)}</div>
+        </div>
+      </div>
+    `;
+  }
+  if (m.tipoAcao === 'atualizar_descricao') {
+    return `
+      <div style="display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start;background:#fff">
+        <div style="flex-shrink:0;width:80px">
+          <div style="font-weight:700;font-size:13px;color:${corFase}">${escHtml(m.id)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:'DM Mono',monospace">${escHtml(m.horaLocal)}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:4px">📝 Descrição</div>
+        </div>
+        <div style="flex:1;max-width:440px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escHtml(m.label)}</div>
+          <div style="background:#FFF;border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.5;color:var(--text);white-space:normal;word-wrap:break-word">${wzFormatarWhatsapp(m.mensagem || '')}</div>
+        </div>
+      </div>
+    `;
+  }
+  // WZ / IN: balão verde estilo WhatsApp
+  return `
+    <div style="display:flex;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);align-items:flex-start;background:#E5DDD5">
+      <div style="flex-shrink:0;width:80px">
+        <div style="font-weight:700;font-size:13px;color:${corFase}">${escHtml(m.id)}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:'DM Mono',monospace">${escHtml(m.horaLocal)}</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:4px">${m.tipo === 'imagem' ? '🖼️ Imagem' : '💬 Texto'}</div>
+      </div>
+      <div style="flex:1;max-width:420px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:6px">${escHtml(m.label)}</div>
+        <div style="background:#D9FDD3;border-radius:8px;padding:8px 10px;position:relative;box-shadow:0 1px 0.5px rgba(0,0,0,0.13);font-size:13.5px;line-height:1.4;color:#111B21">
+          ${m.imageUrl ? `<img src="${escAttr(m.imageUrl)}" style="width:100%;max-width:380px;border-radius:6px;margin-bottom:6px;display:block" loading="lazy">` : ''}
+          <div style="white-space:normal;word-wrap:break-word">${wzFormatarWhatsapp(m.mensagem || '')}</div>
+          <div style="font-size:10px;color:#667781;text-align:right;margin-top:4px">${escHtml(m.horaLocal.split(', ')[1] || '')}</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 async function wzAgendar() {
@@ -1647,8 +1712,10 @@ async function wzCarregarDropdownTeste() {
     const msgs = await api('/api/wz/mensagens');
     const sel = document.getElementById('wz-teste-id');
     if (!msgs?.length) { sel.innerHTML = '<option value="">(sincronize primeiro)</option>'; return; }
-    sel.innerHTML = `<option value="">Todas (${msgs.length})</option>` +
-      msgs.map(m => `<option value="${escAttr(m.id)}">${escHtml(m.id + ' · ' + m.label)}</option>`).join('');
+    // Só mensagens (WZ + IN), não rename/descrição
+    const testáveis = msgs.filter(m => !m.tipoAcao || m.tipoAcao === 'enviar_mensagem');
+    sel.innerHTML = `<option value="">Todas as mensagens (${testáveis.length})</option>` +
+      testáveis.map(m => `<option value="${escAttr(m.id)}">${escHtml(m.id + ' · ' + m.label)}</option>`).join('');
     // pre-popula com último número usado
     const last = localStorage.getItem('wz-teste-numero');
     if (last && !document.getElementById('wz-teste-numero').value) {

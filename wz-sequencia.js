@@ -37,6 +37,8 @@ export async function wzPreview(dataWebinario) {
     });
     return {
       id: wz.id,
+      prefixo: wz.prefixo || 'WZ',
+      tipoAcao: wz.tipoAcao || 'enviar_mensagem',
       label: wz.label,
       tipo: wz.tipo,
       dia: wz.dia,
@@ -49,14 +51,23 @@ export async function wzPreview(dataWebinario) {
 }
 
 // ─── Agendar toda a sequência ────────────────────────────────────────────
-export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario }) {
+// Só agenda itens do tipo 'enviar_mensagem' (WZ e IN) via Sendflow nativo.
+// Renames (RN) e mudanças de descrição (DS) precisam de outro fluxo (próxima
+// versão usa cron/agendamentos do Notion).
+//
+// @param {string[]} [opts.fases] - Filtrar por prefixo ['WZ','IN']. Omite = todas
+export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, fases }) {
   const seq = await getSequencia();
   if (!seq.length) {
     throw new Error('Sequência vazia. Sincronize com o Notion primeiro.');
   }
 
+  // Só processa itens que viram mensagem no Sendflow (enviar_mensagem)
+  let alvo = seq.filter((w) => w.tipoAcao === 'enviar_mensagem' || !w.tipoAcao);
+  if (fases?.length) alvo = alvo.filter((w) => fases.includes(w.prefixo));
+
   const resultados = [];
-  for (const wz of seq) {
+  for (const wz of alvo) {
     const at = scheduledTo(dataWebinario, wz.offset, wz.hora ?? 0, wz.min ?? 0);
     try {
       let res;
@@ -78,12 +89,12 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario }
           shippingSpeed: 'none',
         });
       }
-      resultados.push({ id: wz.id, ok: true, actionId: res.data?.actionId, scheduledTo: at });
+      resultados.push({ id: wz.id, prefixo: wz.prefixo || 'WZ', ok: true, actionId: res.data?.actionId, scheduledTo: at });
     } catch (err) {
       const erro = err.response
         ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}`
         : err.message;
-      resultados.push({ id: wz.id, ok: false, erro, scheduledTo: at });
+      resultados.push({ id: wz.id, prefixo: wz.prefixo || 'WZ', ok: false, erro, scheduledTo: at });
     }
     // pausa entre requisições
     await new Promise((r) => setTimeout(r, 400));

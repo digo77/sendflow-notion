@@ -55,10 +55,13 @@ export async function validarSequencia({ mensagens, dataWebinario }) {
     return { ok: false, erros, avisos };
   }
 
-  // 3. Duplicatas de horário
+  // 3. Duplicatas de horário — só detecta conflito DENTRO da mesma fase
+  // (ex: 2 mensagens WZ no mesmo horário = erro; mas WZ + RN no mesmo
+  // horário é ok, são ações diferentes)
   const slots = new Map();
   for (const m of mensagens) {
-    const chave = `${m.offset}__${m.hora}:${String(m.min ?? 0).padStart(2, '0')}`;
+    const fase = m.prefixo || 'WZ';
+    const chave = `${fase}__${m.offset}__${m.hora}:${String(m.min ?? 0).padStart(2, '0')}`;
     if (!slots.has(chave)) slots.set(chave, []);
     slots.get(chave).push(m.id);
   }
@@ -68,8 +71,9 @@ export async function validarSequencia({ mensagens, dataWebinario }) {
     }
   }
 
-  // 4. Texto vazio e limites
-  for (const m of mensagens) {
+  // 4. Texto vazio e limites (só valida mensagens; renames/descrições têm regras diferentes)
+  const somenteMensagens = mensagens.filter((m) => !m.tipoAcao || m.tipoAcao === 'enviar_mensagem');
+  for (const m of somenteMensagens) {
     if (!m.mensagem || !m.mensagem.trim()) {
       erros.push(`${m.id}: mensagem vazia.`);
       continue;
@@ -83,8 +87,19 @@ export async function validarSequencia({ mensagens, dataWebinario }) {
     }
   }
 
+  // 4b. Renames: só checa que o novo nome não está vazio
+  for (const m of mensagens.filter((m) => m.tipoAcao === 'renomear_grupo')) {
+    if (!m.mensagem || !m.mensagem.trim()) erros.push(`${m.id}: nome do grupo vazio.`);
+    if (m.mensagem && m.mensagem.length > 100) avisos.push(`${m.id}: nome com ${m.mensagem.length} chars (WhatsApp recomenda <= 100).`);
+  }
+
+  // 4c. Descrições: só checa não-vazio
+  for (const m of mensagens.filter((m) => m.tipoAcao === 'atualizar_descricao')) {
+    if (!m.mensagem || !m.mensagem.trim()) erros.push(`${m.id}: descrição vazia.`);
+  }
+
   // 5. Imagens acessíveis (paralelo, timeout implícito pelo fetch)
-  const imagens = mensagens.filter((m) => m.tipo === 'imagem');
+  const imagens = somenteMensagens.filter((m) => m.tipo === 'imagem');
   const semImg = imagens.filter((m) => !m.imageUrl);
   for (const m of semImg) erros.push(`${m.id}: marcada como imagem mas sem URL.`);
 
