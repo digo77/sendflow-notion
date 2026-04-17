@@ -14,6 +14,22 @@
       "descricao_grupo": "*Bem-vinda(o) ao grupo do Cookie Sandwich* 🍪\n\nNa *terça-feira às 19h* a gente se encontra pra uma aula que vai mudar como você olha pra esse produto.\n\nMas antes, deixei uma aula de presente pra você ir chegando no clima certo 👇🏻\n\nhttps://chefaureomagalhaes.com/pages/sandwich/presente-cookieshot.html\n\nNos vemos na terça. 🙌\n_Chef Áureo_",
       "foto_grupo_url": "https://res.cloudinary.com/dkjohrieh/image/upload/f_auto,q_auto,c_fill,w_800,h_800,g_auto/chefaureo/imagem_chef-sandwich",
       "mensagem_wpp": "✅ Grupo criado!\n*{nome_grupo}*\n📅 {data_webinario}\n🔗 {link_grupo}"
+    },
+    {
+      "ativo": true,
+      "auto_agendar_wz": false,
+      "nome_cliente": "Rodrigo",
+      "nome_base": "Rodrigo Testes",
+      "numero_admin": "5511974561100",
+      "dia_semana": 3,
+      "hora_webinario": "14:00",
+      "hora_corte": "12:59",
+      "switchy_link_id": "teste",
+      "switchy_domain": "link.pixelnrock.com",
+      "descricao_grupo": "Teste do Rod",
+      "foto_grupo_url": "http://nativepxl.com/wp-content/uploads/2026/04/rodrigo-bg9kw.jpg",
+      "mensagem_wpp": "",
+      "id": "webinario-1776448843552"
     }
   ]
 }

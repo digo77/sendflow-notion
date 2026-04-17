@@ -1,0 +1,173 @@
+[
+  {
+    "id": "wz-1776448668096",
+    "agendadoEm": "2026-04-17T17:57:48.096Z",
+    "releaseId": "4eGjwrl02ThSiFSVBmFs",
+    "accountId": null,
+    "dataWebinario": "2026-04-21",
+    "total": 22,
+    "agendadas": 22,
+    "falhas": 0,
+    "validacao": {
+      "ok": true,
+      "erros": 0,
+      "avisos": 0
+    },
+    "resultados": [
+      {
+        "id": "WZ1",
+        "ok": true,
+        "actionId": "Gcb3RIKaRBGyngFIIYF1",
+        "scheduledTo": "2026-04-15T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ2",
+        "ok": true,
+        "actionId": "VeC7Tfr4WYPNPWlLVJVB",
+        "scheduledTo": "2026-04-16T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ3",
+        "ok": true,
+        "actionId": "20dHcSC6AODaAVcvMIW6",
+        "scheduledTo": "2026-04-17T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ4",
+        "ok": true,
+        "actionId": "uhG4aShpJwMtGEZNUyoE",
+        "scheduledTo": "2026-04-18T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ5",
+        "ok": true,
+        "actionId": "JicVN6x9NeNv650BUHMw",
+        "scheduledTo": "2026-04-19T12:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ7",
+        "ok": true,
+        "actionId": "gc8g3J6Hkrpd3ICkyYZu",
+        "scheduledTo": "2026-04-19T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ6",
+        "ok": true,
+        "actionId": "7vMgqpF8GIbVmVopqH21",
+        "scheduledTo": "2026-04-20T12:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ8",
+        "ok": true,
+        "actionId": "RALQJjzARVl3Gno50256",
+        "scheduledTo": "2026-04-20T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ9",
+        "ok": true,
+        "actionId": "EYsZQ6uh0MGhkxPoNZyt",
+        "scheduledTo": "2026-04-20T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ10",
+        "ok": true,
+        "actionId": "9V6lHky4gwug7oncl1OQ",
+        "scheduledTo": "2026-04-21T14:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ11",
+        "ok": true,
+        "actionId": "I8yCCgWuMD1smvZ5nxBj",
+        "scheduledTo": "2026-04-21T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ12",
+        "ok": true,
+        "actionId": "Eqcew95LZ2oVqatFhyqD",
+        "scheduledTo": "2026-04-21T22:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ13",
+        "ok": true,
+        "actionId": "snvDINdbgo9J5r25Yeow",
+        "scheduledTo": "2026-04-21T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "WZ14",
+        "ok": true,
+        "actionId": "BlbSAGD0SaoAS1vtqDDV",
+        "scheduledTo": "2026-04-21T23:30:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN1",
+        "ok": true,
+        "actionId": "vAbv6Sf6cPMmWg8F5DUg",
+        "scheduledTo": "2026-04-22T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN2",
+        "ok": true,
+        "actionId": "u6MH7dzQ3I9WEHJ0tpFf",
+        "scheduledTo": "2026-04-22T13:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN3",
+        "ok": true,
+        "actionId": "LPiNgtWZf8CFy5f1L091",
+        "scheduledTo": "2026-04-22T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN4",
+        "ok": true,
+        "actionId": "WLCjBFup8lc4Kx6AJ6Sg",
+        "scheduledTo": "2026-04-23T13:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN5",
+        "ok": true,
+        "actionId": "Eq0s9YVJ0ztgYNAuy1xa",
+        "scheduledTo": "2026-04-23T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN6",
+        "ok": true,
+        "actionId": "JPHak7Ydxjnrah9biGdr",
+        "scheduledTo": "2026-04-24T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN7",
+        "ok": true,
+        "actionId": "eeVWI9ocrGidjGdvdYeZ",
+        "scheduledTo": "2026-04-24T02:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "IN8",
+        "ok": true,
+        "actionId": "TTa3WWbXmfnzpYAbYedW",
+        "scheduledTo": "2026-04-24T12:00:00.000Z",
+        "erro": null
+      }
+    ]
+  }
+]

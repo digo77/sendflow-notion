@@ -855,6 +855,11 @@ async function api(path, opts = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const texto = await res.text();
+    throw new Error(`Servidor respondeu ${res.status} sem JSON (${texto.slice(0, 80)}...). Reinicie o servidor (Ctrl+C e npm start).`);
+  }
   return res.json();
 }
 
@@ -1507,19 +1512,25 @@ function carregarHistoricoWebinario() { wbCarregarHistorico(); }
 
 let wzCampanhas = [];
 async function wzCarregarCampanhas() {
+  const sel = document.getElementById('wz-release-id');
   try {
     const campanhas = await api('/api/campanhas');
-    const sel = document.getElementById('wz-release-id');
     if (!campanhas?.length) {
       sel.innerHTML = '<option value="">Nenhuma campanha encontrada</option>';
       return;
     }
-    // Ordena por data de criação no Notion (mais recente primeiro)
-    wzCampanhas = [...campanhas].sort((a, b) => {
-      const da = new Date(a.createdTime || a.ultimaSync || 0).getTime();
-      const db = new Date(b.createdTime || b.ultimaSync || 0).getTime();
-      return db - da;
-    });
+    // Só campanhas ATIVAS (exclui encerradas/pausadas) e ordena pela mais recente
+    wzCampanhas = campanhas
+      .filter(c => !c.status || c.status === 'ativa')
+      .sort((a, b) => {
+        const da = new Date(a.createdTime || a.ultimaSync || 0).getTime();
+        const db = new Date(b.createdTime || b.ultimaSync || 0).getTime();
+        return db - da;
+      });
+    if (!wzCampanhas.length) {
+      sel.innerHTML = '<option value="">Nenhuma campanha ativa</option>';
+      return;
+    }
     sel.innerHTML = '<option value="">Selecione a campanha...</option>' +
       wzCampanhas.map(c => {
         const rid = c.idSendflow || c.releaseId || '';
@@ -1527,7 +1538,9 @@ async function wzCarregarCampanhas() {
         return `<option value="${escAttr(rid)}">${escHtml(c.nome || c.title || rid)}</option>`;
       }).filter(Boolean).join('');
   } catch (e) {
-    document.getElementById('wz-release-id').innerHTML = '<option value="">Erro ao carregar</option>';
+    sel.innerHTML = '<option value="">Erro ao carregar</option>';
+    console.error('Erro carregando campanhas:', e.message);
+    toast('Erro: ' + e.message);
   }
 }
 
