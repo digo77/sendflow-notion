@@ -773,7 +773,13 @@ tr:hover td { background: var(--surface2); }
     <div class="table-wrap" style="margin-top:20px">
       <div class="table-header">
         <h3>Renames e Descrições agendados</h3>
-        <button class="btn btn-secondary btn-sm" onclick="wzCarregarAgendadosLocais()">🔄 Atualizar</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="wzCarregarAgendadosLocais()">🔄 Atualizar</button>
+          <button class="btn btn-danger btn-sm" onclick="wzLimparExecutados()">🧹 Limpar executados/cancelados</button>
+        </div>
+      </div>
+      <div style="padding:10px 16px;font-size:12px;color:var(--text2);background:var(--surface2);border-bottom:1px solid var(--border)">
+        ℹ️ Itens <strong>pendentes</strong> vão disparar sozinhos no horário marcado (via cron interno do servidor). Aparecem no Sendflow em <strong>Sucesso</strong> depois de executar. O botão <strong>"▶ Executar agora"</strong> é só pra forçar antecipação.
       </div>
       <div id="wz-agendados-locais"></div>
     </div>
@@ -1970,11 +1976,20 @@ async function wzCancelarAgendado(id) {
   } catch (e) { toast('Erro: ' + e.message); }
 }
 
+async function wzLimparExecutados() {
+  if (!confirm('Remover do histórico todos os itens já executados/cancelados? Os pendentes continuam.')) return;
+  try {
+    const res = await api('/api/wz/agendados/limpar', { method: 'POST' });
+    if (res.ok) { toast(`🧹 ${res.removidos} itens removidos`); wzCarregarAgendadosLocais(); }
+    else toast('Erro: ' + (res.error || 'falha'));
+  } catch (e) { toast('Erro: ' + e.message); }
+}
+
 async function wzExecutarAgora(id) {
-  if (!confirm('Executar AGORA (antes do horário)? Isso vai chamar o Sendflow imediatamente.')) return;
+  if (!confirm('⚠️ ATENÇÃO: isso DISPARA IMEDIATAMENTE esse item no WhatsApp, ignorando o horário agendado.\n\nUse só se quiser testar ou forçar antecipação. Se quiser esperar o horário correto, feche esse alerta.\n\nContinuar com a execução imediata?')) return;
   try {
     const res = await api('/api/wz/agendados/' + encodeURIComponent(id) + '/executar', { method: 'POST' });
-    if (res.ok) { toast('✅ Executado no Sendflow!'); wzCarregarAgendadosLocais(); }
+    if (res.ok) { toast('✅ Executado agora no Sendflow'); wzCarregarAgendadosLocais(); }
     else toast('Erro: ' + (res.error || 'falha'));
   } catch (e) { toast('Erro: ' + e.message); }
 }

@@ -501,6 +501,22 @@ app.delete('/api/wz/agendados/:id', async (req, res) => {
   }
 });
 
+// Limpa todos os agendamentos já executados/cancelados (mantém só pendentes)
+app.post('/api/wz/agendados/limpar', async (_req, res) => {
+  try {
+    const lista = await listarAgendados();
+    const antes = lista.length;
+    const pendentes = lista.filter((e) => e.status === 'pendente');
+    const removidos = antes - pendentes.length;
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(__dirname, 'data', 'wz-agendados.json'), JSON.stringify(pendentes, null, 2), 'utf-8');
+    console.log(`[WZ-Agendador] ${removidos} entradas limpas (mantidas ${pendentes.length} pendentes)`);
+    res.json({ ok: true, antes, depois: pendentes.length, removidos });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Força execução imediata de um agendamento pendente (pra teste)
 app.post('/api/wz/agendados/:id/executar', async (req, res) => {
   try {
