@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listarGruposDoRelease, atualizarGrupo, atualizarRelease } from './sendflow.js';
+import { listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
@@ -63,12 +63,14 @@ async function executarAcao(entrada) {
 }
 
 /**
- * Agenda uma lista de ações (RN ou DS) — agora diretamente no Sendflow.
- * Cada item dispara uma chamada PUT /releases/{id} com scheduled=true,
- * o que cria uma ação na aba "Agendado" do Sendflow. O Sendflow dispara
- * no horário sozinho (sem depender do nosso servidor).
+ * Agenda uma lista de ações (RN ou DS) LOCALMENTE.
+ * Cada item é salvo em data/wz-agendados.json com status='pendente'.
+ * O cron interno (executarPendentes, roda a cada minuto em index.js)
+ * dispara no horário chamando PUT /release-groups/{id} em cada grupo.
  *
- * Mantemos também o registro local pra auditoria/histórico.
+ * Visibilidade:
+ *   - Antes de disparar: aparece só na nossa UI (tabela do dashboard)
+ *   - Depois de disparar: aparece no Sendflow (aba Sucesso)
  *
  * @param {Array} items - cada item: { id, prefixo, tipoAcao, scheduledTo, releaseId, accountId, mensagem, label }
  */
@@ -77,7 +79,7 @@ export async function agendarAcoes(items) {
   const atual = await ler();
   const resultados = [];
   for (const it of items) {
-    const entradaBase = {
+    const entrada = {
       id: `${it.id}-${it.scheduledTo}`,
       acaoId: it.id,
       prefixo: it.prefixo,
@@ -87,35 +89,15 @@ export async function agendarAcoes(items) {
       accountId: it.accountId || null,
       payload: it.mensagem,
       label: it.label || '',
+      status: 'pendente',
       criadoEm: new Date().toISOString(),
     };
-
-    try {
-      // Agenda NO SENDFLOW (aparece na aba "Agendado")
-      const payload = { releaseId: it.releaseId, scheduled: true, scheduledTo: it.scheduledTo };
-      if (it.tipoAcao === 'renomear_grupo') payload.nomeGrupo = it.mensagem;
-      else if (it.tipoAcao === 'atualizar_descricao') payload.descricao = it.mensagem;
-      else throw new Error(`tipoAcao não suportado: ${it.tipoAcao}`);
-      const r = await atualizarRelease(payload);
-
-      const entrada = { ...entradaBase, status: 'agendado_sendflow', sendflowResponse: r.data };
-      const semDup = atual.filter((e) => e.id !== entrada.id);
-      semDup.push(entrada);
-      atual.length = 0;
-      atual.push(...semDup);
-      resultados.push({ id: entrada.id, ok: true, scheduledTo: entrada.scheduledTo });
-    } catch (err) {
-      const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
-      const entrada = { ...entradaBase, status: 'erro_agendamento', erro: msg };
-      const semDup = atual.filter((e) => e.id !== entrada.id);
-      semDup.push(entrada);
-      atual.length = 0;
-      atual.push(...semDup);
-      resultados.push({ id: entrada.id, ok: false, erro: msg });
-    }
-
-    // Pausa pequena pra não bombar a API
-    await new Promise((r) => setTimeout(r, 300));
+    // Idempotência: se já existe mesmo id, sobrescreve
+    const semDup = atual.filter((e) => e.id !== entrada.id);
+    semDup.push(entrada);
+    atual.length = 0;
+    atual.push(...semDup);
+    resultados.push({ id: entrada.id, ok: true, scheduledTo: entrada.scheduledTo });
   }
   await salvar(atual);
   return resultados;
