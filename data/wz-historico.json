@@ -1,5 +1,85 @@
 [
   {
+    "id": "wz-1776595900212",
+    "agendadoEm": "2026-04-19T10:51:40.212Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": null,
+    "dataWebinario": "2026-04-21",
+    "total": 9,
+    "agendadas": 9,
+    "falhas": 0,
+    "validacao": {
+      "ok": true,
+      "erros": 0,
+      "avisos": 0
+    },
+    "resultados": [
+      {
+        "id": "RN2-2026-04-19T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-19T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN3-2026-04-20T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-20T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN4-2026-04-21T11:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T11:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN5-2026-04-21T20:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T20:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN6-2026-04-21T22:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T22:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN7-2026-04-21T23:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-21T23:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN8-2026-04-22T00:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-22T00:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN9-2026-04-24T01:00:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-24T01:00:00.000Z",
+        "erro": null
+      },
+      {
+        "id": "RN10-2026-04-24T02:59:00.000Z",
+        "ok": true,
+        "actionId": null,
+        "scheduledTo": "2026-04-24T02:59:00.000Z",
+        "erro": null
+      }
+    ]
+  },
+  {
     "id": "wz-1776564762252",
     "agendadoEm": "2026-04-19T02:12:42.252Z",
     "releaseId": "ei6ZoFsBnJPZJ8YoryTk",

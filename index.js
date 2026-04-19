@@ -15,7 +15,7 @@ import {
   listarWebinarios,
   marcarPushSendflow,
 } from './notion.js';
-import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease } from './sendflow.js';
+import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease, criarGrupoWebinario } from './sendflow.js';
 import { runBackup } from './backup.js';
 import {
   lerWebinarios,
@@ -442,6 +442,51 @@ app.get('/api/wz/mensagens', async (_req, res) => {
     })));
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Cria uma nova campanha (release) no Sendflow pra próxima semana de webinário
+app.post('/api/wz/nova-campanha', async (req, res) => {
+  try {
+    const { dataWebinario, nomeOverride, descricaoInicial, fotoUrl, accountId } = req.body || {};
+    if (!dataWebinario || !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
+      return res.status(400).json({ error: 'dataWebinario obrigatório (YYYY-MM-DD)' });
+    }
+
+    // Nome default: "{nome_base} • Aula DD.MM às HHh"
+    const cfg = await lerConfig();
+    const [, isoMes, isoDia] = dataWebinario.split('-');
+    const hora = String(cfg.horaWebinario ?? 20).padStart(2, '0');
+    const nomeBase = cfg.nomeBase || 'Campanha';
+    const nome = nomeOverride || `${nomeBase} • Aula ${isoDia}.${isoMes} às ${hora}h`;
+
+    // Cria release + grupo no Sendflow
+    const r = await criarGrupoWebinario({
+      accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+      nome,
+      descricao: descricaoInicial || '',
+      fotoUrl: fotoUrl || null,
+    });
+
+    // Re-sincroniza campanhas no Notion pra refletir a nova
+    try {
+      const sf = await listarCampanhasSendflow();
+      await sincronizarCampanhas(sf.data);
+    } catch (err) {
+      console.error('[Nova Campanha] erro ao sincronizar Notion:', err.message);
+    }
+
+    console.log(`[Nova Campanha] ✅ ${nome} (${r.data.id})`);
+    res.json({
+      ok: true,
+      releaseId: r.data.id,
+      nome,
+      inviteLink: r.data.inviteLink,
+    });
+  } catch (err) {
+    const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+    console.error('[Nova Campanha] erro:', msg);
+    res.status(500).json({ error: msg });
   }
 });
 

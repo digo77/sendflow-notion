@@ -645,7 +645,10 @@ tr:hover td { background: var(--surface2); }
 
   <!-- Tab: Aquecimento WZ -->
   <div class="tab-content" id="tab-aquecimento-wz">
-    <div class="page-title">🔥 Sequência de Aquecimento WZ</div>
+    <div class="page-title" style="justify-content:space-between">
+      <span>🔥 Sequência de Aquecimento WZ</span>
+      <button class="btn btn-primary" onclick="wzAbrirModalNovaCampanha()">➕ Nova campanha</button>
+    </div>
 
     <!-- Fonte: Notion -->
     <div class="table-wrap" style="margin-bottom:20px">
@@ -794,6 +797,36 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 
+</div>
+
+<!-- Modal: Nova Campanha WZ -->
+<div class="modal-overlay" id="wz-modal-nova" onclick="if(event.target===this)wzFecharModalNovaCampanha()">
+  <div class="modal">
+    <h3>➕ Nova campanha de aquecimento</h3>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:16px">Cria um release novo no Sendflow (com grupo do WhatsApp). Depois você escolhe ele no dropdown acima e agenda as fases.</div>
+    <form onsubmit="wzCriarNovaCampanha(event)">
+      <div class="form-group">
+        <label>Data do Webinário (terça-feira)</label>
+        <input type="date" id="wz-nova-data" required>
+      </div>
+      <div class="form-group">
+        <label>Nome do grupo <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">— deixa vazio pra usar o padrão "{nome_base} • Aula DD.MM às HHh"</span></label>
+        <input type="text" id="wz-nova-nome" placeholder="Usar padrão automático">
+      </div>
+      <div class="form-group">
+        <label>Descrição inicial <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">— opcional, pega do DS1 do Notion se deixar vazio</span></label>
+        <textarea id="wz-nova-descricao" rows="4" placeholder="(auto: DS1 do Notion)"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Foto URL do grupo (opcional)</label>
+        <input type="url" id="wz-nova-foto" placeholder="https://...">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="wzFecharModalNovaCampanha()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-wz-nova">Criar campanha</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Modal: Novo Agendamento -->
@@ -1992,6 +2025,69 @@ async function wzExecutarAgora(id) {
     if (res.ok) { toast('✅ Executado agora no Sendflow'); wzCarregarAgendadosLocais(); }
     else toast('Erro: ' + (res.error || 'falha'));
   } catch (e) { toast('Erro: ' + e.message); }
+}
+
+function wzAbrirModalNovaCampanha() {
+  document.getElementById('wz-modal-nova').classList.add('show');
+  // Pré-preenche descrição com DS1 do Notion se existir
+  api('/api/wz/mensagens').then(msgs => {
+    const ds1 = msgs.find(m => m.id === 'DS1');
+    if (ds1) {
+      // Vai buscar o conteudo via preview pra pegar a mensagem com variáveis aplicadas
+      const dataFake = new Date();
+      dataFake.setDate(dataFake.getDate() + 3);
+      const dataStr = dataFake.toISOString().slice(0, 10);
+      api('/api/wz/preview?dataWebinario=' + dataStr).then(items => {
+        const ds1Item = items.find(x => x.id === 'DS1');
+        if (ds1Item && !document.getElementById('wz-nova-descricao').value) {
+          document.getElementById('wz-nova-descricao').placeholder = ds1Item.mensagem.slice(0, 200) + '...';
+        }
+      });
+    }
+  }).catch(() => {});
+}
+
+function wzFecharModalNovaCampanha() {
+  document.getElementById('wz-modal-nova').classList.remove('show');
+  document.getElementById('wz-nova-data').value = '';
+  document.getElementById('wz-nova-nome').value = '';
+  document.getElementById('wz-nova-descricao').value = '';
+  document.getElementById('wz-nova-foto').value = '';
+}
+
+async function wzCriarNovaCampanha(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-wz-nova');
+  btn.disabled = true;
+  btn.textContent = '⏳ Criando...';
+  try {
+    const body = {
+      dataWebinario: document.getElementById('wz-nova-data').value,
+      nomeOverride: document.getElementById('wz-nova-nome').value.trim() || undefined,
+      descricaoInicial: document.getElementById('wz-nova-descricao').value.trim() || undefined,
+      fotoUrl: document.getElementById('wz-nova-foto').value.trim() || undefined,
+    };
+    const res = await api('/api/wz/nova-campanha', { method: 'POST', body: JSON.stringify(body) });
+    if (res.ok) {
+      toast(`✅ Campanha criada: ${res.nome}`);
+      wzFecharModalNovaCampanha();
+      // Re-carrega dropdowns pra incluir a nova
+      await wzCarregarCampanhas();
+      // Seleciona a nova campanha
+      const sel = document.getElementById('wz-release-id');
+      sel.value = res.releaseId;
+      // Preenche data do webinário
+      document.getElementById('wz-data-webinario').value = body.dataWebinario;
+      // Dá um scroll até o topo pra user ver
+      document.getElementById('tab-aquecimento-wz').scrollIntoView({ behavior: 'smooth' });
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (err) {
+    toast('Erro: ' + err.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Criar campanha';
 }
 
 function carregarAquecimentoWZ() {
