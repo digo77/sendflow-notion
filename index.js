@@ -643,6 +643,7 @@ app.post('/api/wz/agendar', async (req, res) => {
     }
 
     // 2b. Renames e Descrições via agendador local
+    let puladosPassado = [];
     if (fasesLocais.length) {
       const cfg = await lerConfig();
       const vars = {
@@ -651,7 +652,8 @@ app.post('/api/wz/agendar', async (req, res) => {
         nome_base: cfg.nomeBase || '',
         link_inscricao: cfg.linkInscricao || '',
       };
-      const acoes = seq
+      const agora = Date.now();
+      const todas = seq
         .filter((w) => fasesLocais.includes(w.prefixo))
         .map((w) => {
           const [y, m, d] = dataWebinario.split('-').map(Number);
@@ -667,8 +669,16 @@ app.post('/api/wz/agendar', async (req, res) => {
             label: w.label,
           };
         });
-      const r = await agendarAcoes(acoes);
-      resultadosLocais.push(...r);
+
+      // Separa ações cujo horário já passou (não agendar, só reportar)
+      const acoes = todas.filter((a) => new Date(a.scheduledTo).getTime() > agora);
+      puladosPassado = todas.filter((a) => new Date(a.scheduledTo).getTime() <= agora)
+        .map((a) => ({ id: a.id, label: a.label, scheduledTo: a.scheduledTo }));
+
+      if (acoes.length) {
+        const r = await agendarAcoes(acoes);
+        resultadosLocais.push(...r);
+      }
     }
 
     const totalResultados = [...resultadosMensagens, ...resultadosLocais];
@@ -688,6 +698,7 @@ app.post('/api/wz/agendar', async (req, res) => {
       total: totalResultados.length,
       agendadas: ok,
       falhas,
+      puladosPassado: puladosPassado || [],
       mensagens: resultadosMensagens,
       locais: resultadosLocais,
       validacao,

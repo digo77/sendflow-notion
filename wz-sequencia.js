@@ -81,10 +81,18 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
   if (fases?.length) alvo = alvo.filter((w) => fases.includes(w.prefixo));
 
   const vars = await resolverVariaveis(dataWebinario);
+  const agora = Date.now();
 
   const resultados = [];
   for (const wz of alvo) {
     const at = scheduledTo(dataWebinario, wz.offset, wz.hora ?? 0, wz.min ?? 0);
+
+    // Pula ações cujo horário já passou
+    if (new Date(at).getTime() <= agora) {
+      resultados.push({ id: wz.id, prefixo: wz.prefixo || 'WZ', ok: false, pulado: true, motivo: 'horário já passou', scheduledTo: at });
+      continue;
+    }
+
     const mensagemFinal = aplicarVariaveis(wz.mensagem, vars);
     try {
       let res;

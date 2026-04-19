@@ -110,8 +110,29 @@
     "accountId": "D9ceM3x1pGXTMTH5cDgW",
     "payload": "🔥 HOJE É O DIA • Rodrigo Teste • 21/04 às 20h",
     "label": "Hoje é o dia",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:43:05.883Z"
+    "status": "executado",
+    "criadoEm": "2026-04-17T18:43:05.883Z",
+    "executadoEm": "2026-04-19T02:03:33.168Z",
+    "detalhes": {
+      "gruposAtualizados": [
+        {
+          "grupoId": "6iKlV1QUCMa76ySag2FD",
+          "nome": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 21/04 às 20h",
+          "ok": true
+        },
+        {
+          "grupoId": "oY5yfbd5hXOzzLj8WOaH",
+          "nome": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 21/04 às 20h",
+          "ok": true
+        },
+        {
+          "grupoId": "s4ihkAt1Jy5MhGG2w7Kg",
+          "nome": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 21/04 às 20h #5",
+          "ok": true
+        }
+      ]
+    },
+    "forcado": true
   },
   {
     "id": "RN5-2026-04-21T20:00:00.000Z",

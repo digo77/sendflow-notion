@@ -1709,19 +1709,32 @@ async function wzAgendarFase(prefixo) {
     }
 
     const all = [...(res.mensagens || []), ...(res.locais || [])];
+    const pulados = res.puladosPassado || all.filter(r => r.pulado);
+    const semPulados = all.filter(r => !r.pulado);
     document.getElementById('wz-resultado-titulo').textContent =
-      `${info.nome}: ${res.agendadas}/${res.total} agendadas ${res.falhas ? '· ' + res.falhas + ' falhas ❌' : '✅'}`;
+      `${info.nome}: ${res.agendadas} agendadas ${pulados.length ? '· ' + pulados.length + ' pulados (hora passada) ⏭️' : ''} ${res.falhas ? '· ' + res.falhas + ' falhas ❌' : '✅'}`;
 
-    lista.innerHTML = all.map(r => `
+    let html = '';
+    if (pulados.length) {
+      html += '<div style="padding:10px 14px;background:var(--surface2);border-radius:8px;margin-bottom:12px;font-size:13px">' +
+        '<strong>⏭️ Pulados (horário já passou):</strong> ' +
+        pulados.map(p => escHtml(p.id || p.acaoId)).join(', ') +
+        '</div>';
+    }
+    html += semPulados.map(r => `
       <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
         <span style="font-weight:700;min-width:50px">${escHtml(r.id)}</span>
         <span>${r.ok ? '✅' : '❌'}</span>
         <span style="font-size:12px;color:var(--text2);font-family:monospace">${r.ok ? (r.scheduledTo || '—') : escHtml(r.erro || 'erro')}</span>
       </div>
     `).join('');
+    lista.innerHTML = html;
 
-    if (res.agendadas === res.total && res.total > 0) {
-      toast(`✅ ${res.agendadas} itens de ${info.nome} agendados!`);
+    if (res.agendadas > 0 && res.falhas === 0) {
+      const msg = pulados.length ? `✅ ${res.agendadas} agendadas · ${pulados.length} pulados (hora passada)` : `✅ ${res.agendadas} agendadas!`;
+      toast(msg);
+    } else if (res.agendadas === 0 && pulados.length > 0) {
+      toast(`⏭️ Todos ${pulados.length} pulados (horários já passaram)`);
     } else if (res.total === 0) {
       toast(`Nada pra agendar na ${info.nome}`);
     } else {
