@@ -184,25 +184,33 @@ export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, 
   const body = {};
   if (nome) body.name = nome;
 
-  // IMPORTANTE: o Sendflow SOBRESCREVE o objeto `group` se for enviado parcial,
-  // apagando os outros campos. Mas ele só aceita esses 3 campos nesse PUT:
-  // name, fixedDescription, image. Qualquer outro dá HTTP 400.
-  // Solução: buscar o release atual e fazer merge SÓ desses 3 campos.
   const alteraGroup = nomeGrupo !== undefined || descricao !== undefined || fotoUrl !== undefined;
   if (alteraGroup) {
-    const atual = await buscarRelease(releaseId);
-    const g = atual.data?.group || {};
-    const group = {
-      name: nomeGrupo !== undefined ? nomeGrupo : g.name,
-      fixedDescription: descricao !== undefined ? descricao : g.fixedDescription,
-    };
-    const novaImagem = fotoUrl !== undefined ? fotoUrl : g.image;
-    if (novaImagem != null) group.image = novaImagem;
-    body.group = group;
+    if (scheduled) {
+      // SCHEDULED: mandamos SÓ o campo que está mudando. O Sendflow cria
+      // UMA ação para esse campo e mantém os outros intactos. Se mandar
+      // todos os campos, ele cria uma ação pra cada = polui a aba Agendado.
+      const group = {};
+      if (nomeGrupo !== undefined) group.name = nomeGrupo;
+      if (descricao !== undefined) group.fixedDescription = descricao;
+      if (fotoUrl !== undefined) group.image = fotoUrl;
+      body.group = group;
+    } else {
+      // IMEDIATO: o Sendflow SOBRESCREVE o `group` inteiro se enviado parcial,
+      // apagando os outros campos. Solução: GET atual e fazer merge.
+      const atual = await buscarRelease(releaseId);
+      const g = atual.data?.group || {};
+      const group = {
+        name: nomeGrupo !== undefined ? nomeGrupo : g.name,
+        fixedDescription: descricao !== undefined ? descricao : g.fixedDescription,
+      };
+      const novaImagem = fotoUrl !== undefined ? fotoUrl : g.image;
+      if (novaImagem != null) group.image = novaImagem;
+      body.group = group;
+    }
   }
 
   if (accountIds?.length) body.accountIds = accountIds;
-  // Agendamento nativo do Sendflow (aparece na aba "Agendado")
   if (scheduled) {
     body.scheduled = true;
     body.scheduledTo = scheduledTo;

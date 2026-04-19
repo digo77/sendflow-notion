@@ -9,8 +9,28 @@
     "accountId": "D9ceM3x1pGXTMTH5cDgW",
     "payload": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 21/04 às 20h",
     "label": "Faltam 3 dias",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:43:05.882Z"
+    "status": "executado",
+    "criadoEm": "2026-04-17T18:43:05.882Z",
+    "executadoEm": "2026-04-19T01:52:02.500Z",
+    "detalhes": {
+      "gruposAtualizados": [
+        {
+          "grupoId": "6iKlV1QUCMa76ySag2FD",
+          "nome": "Rodrigo Testes • Aula 22.04 às 14h #6",
+          "ok": true
+        },
+        {
+          "grupoId": "oY5yfbd5hXOzzLj8WOaH",
+          "nome": "test 234 #4",
+          "ok": true
+        },
+        {
+          "grupoId": "s4ihkAt1Jy5MhGG2w7Kg",
+          "nome": "🧪 AGENDADO GRUPO 1776562342358 #5",
+          "ok": true
+        }
+      ]
+    }
   },
   {
     "id": "RN2-2026-04-19T11:00:00.000Z",
@@ -22,8 +42,29 @@
     "accountId": "D9ceM3x1pGXTMTH5cDgW",
     "payload": "⏰ FALTA 2 DIAS • Rodrigo Teste • 21/04 às 20h",
     "label": "Falta 2 dias",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:43:05.883Z"
+    "status": "executado",
+    "criadoEm": "2026-04-17T18:43:05.883Z",
+    "executadoEm": "2026-04-19T01:52:54.347Z",
+    "detalhes": {
+      "gruposAtualizados": [
+        {
+          "grupoId": "6iKlV1QUCMa76ySag2FD",
+          "nome": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 21/04 às 20h #6",
+          "ok": true
+        },
+        {
+          "grupoId": "oY5yfbd5hXOzzLj8WOaH",
+          "nome": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 21/04 às 20h #4",
+          "ok": true
+        },
+        {
+          "grupoId": "s4ihkAt1Jy5MhGG2w7Kg",
+          "nome": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 21/04 às 20h",
+          "ok": true
+        }
+      ]
+    },
+    "forcado": true
   },
   {
     "id": "RN3-2026-04-20T11:00:00.000Z",
@@ -35,8 +76,29 @@
     "accountId": "D9ceM3x1pGXTMTH5cDgW",
     "payload": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 21/04 às 20h",
     "label": "Amanhã tem aula",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:43:05.883Z"
+    "status": "executado",
+    "criadoEm": "2026-04-17T18:43:05.883Z",
+    "executadoEm": "2026-04-19T01:55:01.935Z",
+    "detalhes": {
+      "gruposAtualizados": [
+        {
+          "grupoId": "6iKlV1QUCMa76ySag2FD",
+          "nome": "⏰ FALTA 2 DIAS • Rodrigo Teste • 21/04 às 20h #6",
+          "ok": true
+        },
+        {
+          "grupoId": "oY5yfbd5hXOzzLj8WOaH",
+          "nome": "⏰ FALTA 2 DIAS • Rodrigo Teste • 21/04 às 20h #4",
+          "ok": true
+        },
+        {
+          "grupoId": "s4ihkAt1Jy5MhGG2w7Kg",
+          "nome": "⏰ FALTA 2 DIAS • Rodrigo Teste • 21/04 às 20h",
+          "ok": true
+        }
+      ]
+    },
+    "forcado": true
   },
   {
     "id": "RN4-2026-04-21T11:00:00.000Z",
@@ -202,136 +264,6 @@
     "criadoEm": "2026-04-17T18:53:00.538Z"
   },
   {
-    "id": "RN1-2026-04-19T11:00:00.000Z",
-    "acaoId": "RN1",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-19T11:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 22/04 às 20h",
-    "label": "Faltam 3 dias",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.065Z"
-  },
-  {
-    "id": "RN2-2026-04-20T11:00:00.000Z",
-    "acaoId": "RN2",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-20T11:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "⏰ FALTA 2 DIAS • Rodrigo Teste • 22/04 às 20h",
-    "label": "Falta 2 dias",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.065Z"
-  },
-  {
-    "id": "RN3-2026-04-21T11:00:00.000Z",
-    "acaoId": "RN3",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-21T11:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 22/04 às 20h",
-    "label": "Amanhã tem aula",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.065Z"
-  },
-  {
-    "id": "RN4-2026-04-22T11:00:00.000Z",
-    "acaoId": "RN4",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-22T11:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🔥 HOJE É O DIA • Rodrigo Teste • 22/04 às 20h",
-    "label": "Hoje é o dia",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.065Z"
-  },
-  {
-    "id": "RN5-2026-04-22T20:00:00.000Z",
-    "acaoId": "RN5",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-22T20:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "⚠️ HOJE 20H • Rodrigo Teste • 22/04",
-    "label": "Hoje 20h",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.065Z"
-  },
-  {
-    "id": "RN6-2026-04-22T22:00:00.000Z",
-    "acaoId": "RN6",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-22T22:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "⏳ FALTA 1 HORA • Rodrigo Teste • 22/04 às 20h",
-    "label": "Falta 1 hora",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.066Z"
-  },
-  {
-    "id": "RN7-2026-04-22T23:00:00.000Z",
-    "acaoId": "RN7",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-22T23:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🔴 AO VIVO AGORA • Rodrigo Teste • 22/04",
-    "label": "Ao vivo agora",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.066Z"
-  },
-  {
-    "id": "RN8-2026-04-23T00:00:00.000Z",
-    "acaoId": "RN8",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-23T00:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🎁 INSCRIÇÕES ABERTAS • Cookie Universe",
-    "label": "Inscrições abertas",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.066Z"
-  },
-  {
-    "id": "RN9-2026-04-25T01:00:00.000Z",
-    "acaoId": "RN9",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-25T01:00:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "⏰ ÚLTIMAS HORAS • Cookie Universe",
-    "label": "Últimas horas",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.066Z"
-  },
-  {
-    "id": "RN10-2026-04-25T02:59:00.000Z",
-    "acaoId": "RN10",
-    "prefixo": "RN",
-    "tipoAcao": "renomear_grupo",
-    "scheduledTo": "2026-04-25T02:59:00.000Z",
-    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
-    "accountId": "D9ceM3x1pGXTMTH5cDgW",
-    "payload": "🔒 INSCRIÇÕES ENCERRADAS • Cookie Universe",
-    "label": "Encerrado",
-    "status": "pendente",
-    "criadoEm": "2026-04-17T18:53:54.066Z"
-  },
-  {
     "id": "DS1-2026-04-15T12:00:00.000Z",
     "acaoId": "DS1",
     "prefixo": "DS",
@@ -402,5 +334,185 @@
     "label": "Encerrado",
     "status": "pendente",
     "criadoEm": "2026-04-17T20:08:58.061Z"
+  },
+  {
+    "id": "RN1-2026-04-19T11:00:00.000Z",
+    "acaoId": "RN1",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-19T11:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🔥 FALTAM 3 DIAS • Rodrigo Teste • 22/04 às 20h",
+    "label": "Faltam 3 dias",
+    "criadoEm": "2026-04-19T01:54:10.397Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN2-2026-04-20T11:00:00.000Z",
+    "acaoId": "RN2",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-20T11:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "⏰ FALTA 2 DIAS • Rodrigo Teste • 22/04 às 20h",
+    "label": "Falta 2 dias",
+    "criadoEm": "2026-04-19T01:54:11.434Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN3-2026-04-21T11:00:00.000Z",
+    "acaoId": "RN3",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-21T11:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🚨 AMANHÃ TEM AULA • Rodrigo Teste • 22/04 às 20h",
+    "label": "Amanhã tem aula",
+    "criadoEm": "2026-04-19T01:54:12.487Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN4-2026-04-22T11:00:00.000Z",
+    "acaoId": "RN4",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-22T11:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🔥 HOJE É O DIA • Rodrigo Teste • 22/04 às 20h",
+    "label": "Hoje é o dia",
+    "criadoEm": "2026-04-19T01:54:13.139Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN5-2026-04-22T20:00:00.000Z",
+    "acaoId": "RN5",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-22T20:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "⚠️ HOJE 20H • Rodrigo Teste • 22/04",
+    "label": "Hoje 20h",
+    "criadoEm": "2026-04-19T01:54:13.776Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN6-2026-04-22T22:00:00.000Z",
+    "acaoId": "RN6",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-22T22:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "⏳ FALTA 1 HORA • Rodrigo Teste • 22/04 às 20h",
+    "label": "Falta 1 hora",
+    "criadoEm": "2026-04-19T01:54:14.736Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN7-2026-04-22T23:00:00.000Z",
+    "acaoId": "RN7",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-22T23:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🔴 AO VIVO AGORA • Rodrigo Teste • 22/04",
+    "label": "Ao vivo agora",
+    "criadoEm": "2026-04-19T01:54:15.365Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN8-2026-04-23T00:00:00.000Z",
+    "acaoId": "RN8",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-23T00:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🎁 INSCRIÇÕES ABERTAS • Cookie Universe",
+    "label": "Inscrições abertas",
+    "criadoEm": "2026-04-19T01:54:16.234Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN9-2026-04-25T01:00:00.000Z",
+    "acaoId": "RN9",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-25T01:00:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "⏰ ÚLTIMAS HORAS • Cookie Universe",
+    "label": "Últimas horas",
+    "criadoEm": "2026-04-19T01:54:16.888Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
+  },
+  {
+    "id": "RN10-2026-04-25T02:59:00.000Z",
+    "acaoId": "RN10",
+    "prefixo": "RN",
+    "tipoAcao": "renomear_grupo",
+    "scheduledTo": "2026-04-25T02:59:00.000Z",
+    "releaseId": "ei6ZoFsBnJPZJ8YoryTk",
+    "accountId": "D9ceM3x1pGXTMTH5cDgW",
+    "payload": "🔒 INSCRIÇÕES ENCERRADAS • Cookie Universe",
+    "label": "Encerrado",
+    "criadoEm": "2026-04-19T01:54:17.523Z",
+    "status": "agendado_sendflow",
+    "sendflowResponse": {
+      "message": "Campanha atualizada com sucesso",
+      "success": true,
+      "id": "ei6ZoFsBnJPZJ8YoryTk"
+    }
   }
 ]
