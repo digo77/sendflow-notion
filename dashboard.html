@@ -1924,14 +1924,18 @@ async function wzCarregarAgendadosLocais() {
         const dt = new Date(e.scheduledTo);
         const quando = dt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
         const passou = dt.getTime() <= agora;
-        const badge = e.status === 'pendente' ? (passou ? '<span class="badge badge-aguardando_ok">pendente · vencido</span>' : '<span class="badge badge-pendente">pendente</span>')
+        const badge = e.status === 'agendado_sendflow' ? '<span class="badge badge-pendente" title="Agendado no Sendflow — veja na aba Ações → Agendado">🚀 agendado no Sendflow</span>'
+                    : e.status === 'erro_agendamento' ? `<span class="badge badge-erro" title="${escAttr(e.erro || '')}">erro ao agendar</span>`
+                    : e.status === 'pendente' ? (passou ? '<span class="badge badge-aguardando_ok">pendente · vencido</span>' : '<span class="badge badge-pendente">pendente</span>')
                     : e.status === 'executado' ? '<span class="badge badge-executado">executado</span>'
                     : e.status === 'cancelado' ? '<span class="badge badge-cancelado">cancelado</span>'
                     : `<span class="badge badge-erro" title="${escAttr(e.erro || '')}">erro</span>`;
         const tipo = e.tipoAcao === 'renomear_grupo' ? '🏷️ Rename' : '📝 Descrição';
         const payload = (e.payload || '').slice(0, 60) + ((e.payload || '').length > 60 ? '...' : '');
-        const acao = e.status === 'pendente'
+        const acao = (e.status === 'pendente' || e.status === 'erro_agendamento')
           ? `<button class="btn btn-approve btn-sm" onclick="wzExecutarAgora('${escAttr(e.id)}')" style="margin-right:4px">▶ Executar agora</button><button class="btn btn-danger btn-sm" onclick="wzCancelarAgendado('${escAttr(e.id)}')">Cancelar</button>`
+          : e.status === 'agendado_sendflow'
+          ? `<button class="btn btn-approve btn-sm" onclick="wzExecutarAgora('${escAttr(e.id)}')">▶ Executar agora</button>`
           : '';
         return `<tr>
           <td><strong>${escHtml(e.acaoId)}</strong><div style="font-size:11px;color:var(--text2)">${escHtml(e.label || '')}</div></td>

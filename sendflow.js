@@ -180,7 +180,7 @@ export async function atualizarGrupo(releaseGroupId, { name, description, image 
  * @param {string} [opts.fotoUrl]     - URL nova da foto do grupo
  * @param {string[]} [opts.accountIds]
  */
-export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, fotoUrl, accountIds }) {
+export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, fotoUrl, accountIds, scheduled, scheduledTo }) {
   const body = {};
   if (nome) body.name = nome;
 
@@ -202,6 +202,11 @@ export async function atualizarRelease({ releaseId, nome, nomeGrupo, descricao, 
   }
 
   if (accountIds?.length) body.accountIds = accountIds;
+  // Agendamento nativo do Sendflow (aparece na aba "Agendado")
+  if (scheduled) {
+    body.scheduled = true;
+    body.scheduledTo = scheduledTo;
+  }
   if (!Object.keys(body).length) return { status: 204, data: { noop: true } };
 
   const res = await axios.put(

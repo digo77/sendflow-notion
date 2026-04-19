@@ -11,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
+import { listarGruposDoRelease, atualizarGrupo, atualizarRelease } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
@@ -31,10 +31,9 @@ async function salvar(lista) {
 }
 
 /**
- * Executa uma entrada no Sendflow — atualiza SÓ os grupos individuais,
- * sem tocar no release. Assim evitamos o comportamento nativo do Sendflow
- * que enfileira uma cascata de "ações agendadas" (trocar configuração,
- * tornar administradores, etc.) quando algo muda no release.
+ * Executa IMEDIATAMENTE uma ação — usado pelo "Executar agora" e pelo
+ * cron interno (fallback se algo falhou no agendamento pelo Sendflow).
+ * Atualiza cada grupo individual direto (PUT /release-groups/{id}).
  */
 async function executarAcao(entrada) {
   const campo = entrada.tipoAcao === 'renomear_grupo' ? 'name'
@@ -64,7 +63,13 @@ async function executarAcao(entrada) {
 }
 
 /**
- * Agenda uma lista de ações (RN ou DS) pra execução futura.
+ * Agenda uma lista de ações (RN ou DS) — agora diretamente no Sendflow.
+ * Cada item dispara uma chamada PUT /releases/{id} com scheduled=true,
+ * o que cria uma ação na aba "Agendado" do Sendflow. O Sendflow dispara
+ * no horário sozinho (sem depender do nosso servidor).
+ *
+ * Mantemos também o registro local pra auditoria/histórico.
+ *
  * @param {Array} items - cada item: { id, prefixo, tipoAcao, scheduledTo, releaseId, accountId, mensagem, label }
  */
 export async function agendarAcoes(items) {
@@ -72,7 +77,7 @@ export async function agendarAcoes(items) {
   const atual = await ler();
   const resultados = [];
   for (const it of items) {
-    const entrada = {
+    const entradaBase = {
       id: `${it.id}-${it.scheduledTo}`,
       acaoId: it.id,
       prefixo: it.prefixo,
@@ -80,17 +85,37 @@ export async function agendarAcoes(items) {
       scheduledTo: it.scheduledTo,
       releaseId: it.releaseId,
       accountId: it.accountId || null,
-      payload: it.mensagem, // nome do grupo (RN) ou descrição (DS)
+      payload: it.mensagem,
       label: it.label || '',
-      status: 'pendente',
       criadoEm: new Date().toISOString(),
     };
-    // Idempotência: se já existe mesmo id, remove e sobrescreve
-    const semDuplicata = atual.filter((e) => e.id !== entrada.id);
-    semDuplicata.push(entrada);
-    atual.length = 0;
-    atual.push(...semDuplicata);
-    resultados.push({ id: entrada.id, ok: true, scheduledTo: entrada.scheduledTo });
+
+    try {
+      // Agenda NO SENDFLOW (aparece na aba "Agendado")
+      const payload = { releaseId: it.releaseId, scheduled: true, scheduledTo: it.scheduledTo };
+      if (it.tipoAcao === 'renomear_grupo') payload.nomeGrupo = it.mensagem;
+      else if (it.tipoAcao === 'atualizar_descricao') payload.descricao = it.mensagem;
+      else throw new Error(`tipoAcao não suportado: ${it.tipoAcao}`);
+      const r = await atualizarRelease(payload);
+
+      const entrada = { ...entradaBase, status: 'agendado_sendflow', sendflowResponse: r.data };
+      const semDup = atual.filter((e) => e.id !== entrada.id);
+      semDup.push(entrada);
+      atual.length = 0;
+      atual.push(...semDup);
+      resultados.push({ id: entrada.id, ok: true, scheduledTo: entrada.scheduledTo });
+    } catch (err) {
+      const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+      const entrada = { ...entradaBase, status: 'erro_agendamento', erro: msg };
+      const semDup = atual.filter((e) => e.id !== entrada.id);
+      semDup.push(entrada);
+      atual.length = 0;
+      atual.push(...semDup);
+      resultados.push({ id: entrada.id, ok: false, erro: msg });
+    }
+
+    // Pausa pequena pra não bombar a API
+    await new Promise((r) => setTimeout(r, 300));
   }
   await salvar(atual);
   return resultados;
@@ -103,11 +128,18 @@ export async function listarAgendados({ status } = {}) {
   return todos;
 }
 
-/** Executa ações pendentes cujo scheduledTo já passou. */
+/** Executa ações pendentes cujo scheduledTo já passou.
+ *  NOTA: hoje a gente agenda direto no Sendflow (status='agendado_sendflow'),
+ *  então o cron normalmente não tem nada pra fazer. Esse loop existe apenas
+ *  como fallback, pra o caso de algum agendamento ter falhado no Sendflow
+ *  (status='erro_agendamento') — aí a gente tenta disparar localmente. */
 export async function executarPendentes() {
   const todos = await ler();
   const agora = Date.now();
-  const pendentes = todos.filter((e) => e.status === 'pendente' && new Date(e.scheduledTo).getTime() <= agora);
+  const pendentes = todos.filter((e) =>
+    (e.status === 'pendente' || e.status === 'erro_agendamento') &&
+    new Date(e.scheduledTo).getTime() <= agora
+  );
   if (!pendentes.length) return { executadas: 0 };
 
   let ok = 0, falhas = 0;
