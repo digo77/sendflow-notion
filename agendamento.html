@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agendamento · Sendflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F6F3; --surface:#FFFFFF; --surface2:#F1EFEA; --border:#E7E5DF;
+    --text:#1F1F1E; --text2:#5E5C57; --muted:#8E8B83;
+    --accent:#128C7E; --accent2:#075E54;
+    --wa-bg:#EFEAE2; --wa-bubble:#D9FDD3; --wa-time:#667781;
+    --pend:#F59E0B; --agend:#10B981; --past:#9CA3AF;
+    --WZ:#128C7E; --RN:#8B5CF6; --DS:#F59E0B; --IN:#EC4899; --LV:#3B82F6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 'Inter',system-ui,sans-serif}
+  button{font:inherit;cursor:pointer}
+  input,textarea,select{font:inherit;color:inherit}
+  .mono{font-family:'DM Mono',monospace}
+
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 22px;display:flex;gap:14px;align-items:center;position:sticky;top:0;z-index:20}
+  .topbar h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .topbar .spacer{flex:1}
+  .topbar a{color:var(--text2);text-decoration:none;font-size:13px}
+  .topbar a:hover{color:var(--accent)}
+
+  .shell{max-width:1400px;margin:0 auto;padding:22px}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+  .panel h2{margin:0 0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text2)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .lbl{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin:0 0 4px}
+
+  .input, textarea.input, select.input{
+    width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;font:13px 'Inter',sans-serif;color:var(--text);transition:border .15s,box-shadow .15s;
+  }
+  .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(18,140,126,.12)}
+  textarea.input{resize:vertical;min-height:44px;font-family:inherit}
+  .input.ok{border-color:var(--accent);background:#F0FDF4}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:600;font-size:13px;transition:all .12s}
+  .btn:hover{background:var(--surface2)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:var(--accent2)}
+  .btn.danger{color:#B91C1C;border-color:#FCA5A5}
+  .btn.ghost{background:transparent;border-color:transparent}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .btn.xs{padding:4px 8px;font-size:11px}
+
+  .summary{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:var(--surface2);font-size:12px;font-weight:600}
+  .pill.pend{background:rgba(245,158,11,.12);color:#92400E}
+  .pill.agend{background:rgba(16,185,129,.12);color:#065F46}
+  .pill.past{background:rgba(156,163,175,.18);color:#374151}
+
+  /* Toolbar de filtros */
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .chip{padding:7px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--border);font-size:12px;font-weight:600;cursor:pointer;color:var(--text2);transition:all .12s}
+  .chip:hover{background:var(--surface2)}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip .count{opacity:.65;margin-left:4px}
+  .chip.active .count{opacity:1}
+
+  /* Cards horizontais */
+  .cards-wrap{position:relative}
+  .cards{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 18px;scroll-snap-type:x proximity}
+  .cards::-webkit-scrollbar{height:10px}
+  .cards::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+  .card{
+    flex:0 0 310px;min-width:310px;max-width:310px;scroll-snap-align:start;
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    overflow:hidden;display:flex;flex-direction:column;
+    transition:transform .12s,box-shadow .12s;
+  }
+  .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px -6px rgba(0,0,0,.08)}
+  .card.past{opacity:.72}
+  .card.agend{border-color:#BEF3DF;background:linear-gradient(180deg,#ECFDF5 0%,var(--surface) 40%)}
+
+  .card-hdr{padding:12px 14px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--border)}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:28px;padding:0 8px;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;font-weight:700;color:#fff;letter-spacing:.04em}
+  .badge.WZ{background:var(--WZ)} .badge.RN{background:var(--RN)}
+  .badge.DS{background:var(--DS)} .badge.IN{background:var(--IN)} .badge.LV{background:var(--LV)}
+  .card-meta{flex:1;line-height:1.3}
+  .card-meta .dia{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .card-meta .quando{font-size:14px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
+  .status{font-size:10px;font-weight:700;padding:4px 8px;border-radius:999px;letter-spacing:.3px;text-transform:uppercase}
+  .status.pend{background:rgba(245,158,11,.14);color:#92400E}
+  .status.agend{background:rgba(16,185,129,.14);color:#065F46}
+  .status.past{background:rgba(156,163,175,.2);color:#374151}
+
+  /* Conteúdo — simula WhatsApp */
+  .card-body{padding:12px;background:var(--wa-bg);flex:1;min-height:140px;display:flex;flex-direction:column;justify-content:flex-start}
+  .wa-bubble{background:var(--wa-bubble);padding:7px 9px 5px;border-radius:8px;max-width:92%;align-self:flex-start;position:relative;box-shadow:0 1px 1px rgba(0,0,0,.06)}
+  .wa-bubble img{max-width:100%;border-radius:6px;margin-bottom:6px;display:block}
+  .wa-text{font-size:13px;color:#111B21;white-space:pre-wrap;word-wrap:break-word;line-height:1.35}
+  .wa-time{text-align:right;font-size:10px;color:var(--wa-time);margin-top:2px}
+  .wa-bubble b{font-weight:700}.wa-bubble i{font-style:italic}.wa-bubble s{text-decoration:line-through}
+
+  .sys-action{padding:10px 12px;border-radius:10px;background:#FFF8E7;border:1px dashed #F59E0B;font-size:12px;line-height:1.5}
+  .sys-action.rn{background:#F3EFFF;border-color:#8B5CF6}
+  .sys-action .tipo{font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:.5px;margin-bottom:4px}
+  .sys-action .valor{font-family:'DM Mono',monospace;font-size:12px;color:var(--text);white-space:pre-wrap;word-wrap:break-word}
+
+  .card-acoes{padding:10px 12px;background:var(--surface);display:grid;grid-template-columns:1fr 1fr;gap:6px;border-top:1px solid var(--border)}
+  .card-acoes .btn{padding:7px 6px;font-size:11px;justify-content:center}
+  .card-acoes .btn.wide{grid-column:1/-1}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,20,20,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100;backdrop-filter:blur(4px)}
+  .modal{background:var(--surface);border-radius:16px;max-width:540px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .modal-hdr h3{margin:0;font-size:15px}
+  .modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .modal-ftr{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field .hint{font-size:11px;color:var(--text2)}
+
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1F1F1E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:200;opacity:0;transition:opacity .18s,transform .18s}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-8px)}
+
+  .empty{padding:40px 20px;text-align:center;color:var(--text2);font-size:13px}
+  .empty .ico{font-size:36px;margin-bottom:10px;display:block}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:640px){ .grid-2{grid-template-columns:1fr} .card{flex-basis:280px;min-width:280px;max-width:280px} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🚀 Agendamento</h1>
+  <div class="spacer"></div>
+  <a href="/">← Dashboard completo</a>
+</div>
+
+<div class="shell">
+
+  <!-- PANEL 1: Campanha + Notion -->
+  <div class="panel">
+    <h2>1 · Campanha e fonte</h2>
+    <div class="grid-2">
+      <div class="field">
+        <span class="lbl">Campanha</span>
+        <select id="sel-camp" class="input"></select>
+      </div>
+      <div class="field">
+        <span class="lbl">Data/hora do evento (opcional se modo livre)</span>
+        <div class="row">
+          <input type="date" id="in-data" class="input" style="flex:1">
+          <input type="number" id="in-hora" class="input" min="0" max="23" placeholder="hora" style="width:90px">
+        </div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <span class="lbl">URLs do Notion (uma por linha — opcional)</span>
+      <textarea id="in-urls" class="input" rows="2" placeholder="Cole o link do Notion. Deixe vazio pra trabalhar só com mensagens criadas aqui."></textarea>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="btn-sync">🔄 Sincronizar do Notion</button>
+      <button class="btn" id="btn-salvar-cfg">💾 Salvar configuração</button>
+      <div style="flex:1"></div>
+      <span id="sync-info" class="pill" style="display:none"></span>
+    </div>
+    <div id="sync-erro" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.35);color:#7F1D1D;font-size:12px;white-space:pre-wrap"></div>
+  </div>
+
+  <!-- PANEL 2: Mensagens -->
+  <div class="panel">
+    <div class="row" style="margin-bottom:10px">
+      <h2 style="margin:0">2 · Mensagens programadas</h2>
+      <div style="flex:1"></div>
+      <div class="summary" id="summary"></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="chip active" data-filter="all">Todas <span class="count" id="ct-all">0</span></button>
+      <button class="chip" data-filter="enviar_mensagem">📨 Mensagens <span class="count" id="ct-msg">0</span></button>
+      <button class="chip" data-filter="renomear_grupo">🏷️ Renomear <span class="count" id="ct-rn">0</span></button>
+      <button class="chip" data-filter="atualizar_descricao">📝 Descrição <span class="count" id="ct-ds">0</span></button>
+      <div style="flex:1"></div>
+      <button class="btn sm" onclick="abrirCriarMensagem('enviar_mensagem')">➕ Mensagem</button>
+      <button class="btn sm" onclick="abrirCriarMensagem('renomear_grupo')">🏷️ Renomear</button>
+      <button class="btn sm" onclick="abrirCriarMensagem('atualizar_descricao')">📝 Descrição</button>
+    </div>
+
+    <div class="cards-wrap">
+      <div id="cards" class="cards"></div>
+    </div>
+
+    <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="flex:1"></div>
+      <button class="btn primary" id="btn-agendar-todas">🚀 Agendar todas pendentes</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal container -->
+<div id="modal-root"></div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ─── Helpers ────────────────────────────────────────────────────────────
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = (id) => document.getElementById(id);
+function toast(msg, ms=2600){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),ms); }
+
+async function api(path, opts={}){
+  const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP '+res.status));
+  return data;
+}
+
+function formatWA(txt){
+  if (!txt) return '';
+  let h = esc(txt);
+  h = h.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+  h = h.replace(/_([^_\n]+)_/g, '<i>$1</i>');
+  h = h.replace(/~([^~\n]+)~/g, '<s>$1</s>');
+  return h;
+}
+
+function diaSem(iso){
+  return new Date(iso).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',timeZone:'America/Sao_Paulo'});
+}
+function horaBR(iso){
+  return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
+}
+
+// ─── Estado ────────────────────────────────────────────────────────────
+let campanhas = [];
+let ridAtual = null;
+let cfgAtual = {};
+let itens = [];          // do /api/wz/preview
+let _pendentesIds = [];  // IDs do modal "Agendar tudo" — evita JSON inline em onclick
+let agendadosCache = []; // do /api/wz/agendados
+let filtroAtual = 'all';
+
+// ─── Load campaigns ────────────────────────────────────────────────────
+async function carregarCampanhas(){
+  try {
+    campanhas = await api('/api/wz/campanhas');
+  } catch (e) { campanhas = []; }
+  const sel = $('sel-camp');
+  if (!campanhas.length){
+    sel.innerHTML = '<option value="">— sem campanha (cache padrão) —</option>';
+  } else {
+    sel.innerHTML = campanhas.map(c => {
+      const nome = c.nome || c.releaseId;
+      const sufixo = [
+        c.totalMensagens ? `${c.totalMensagens} msgs` : null,
+        c.modoLivre ? 'livre' : null,
+      ].filter(Boolean).join(' · ');
+      const base = sufixo ? `${nome}  ·  ${sufixo}` : nome;
+      const label = `${base}  ·  ${c.releaseId}`;
+      return `<option value="${esc(c.releaseId)}">${esc(label)}</option>`;
+    }).join('') + '<option value="">— cache padrão —</option>';
+  }
+  // Preserva seleção atual se ainda existe; senão pega a primeira com mensagens
+  const aindaExiste = ridAtual && campanhas.some(c => c.releaseId === ridAtual);
+  if (!aindaExiste) {
+    const prim = campanhas.find(c => c.totalMensagens > 0) || campanhas[0];
+    ridAtual = prim?.releaseId || '';
+  }
+  sel.value = ridAtual;
+  aplicarCfg();
+  await recarregarItens();
+}
+
+function aplicarCfg(){
+  cfgAtual = campanhas.find(c => c.releaseId === ridAtual) || {};
+  $('in-data').value = cfgAtual.dataReferencia || cfgAtual.dataWebinario || '';
+  $('in-hora').value = cfgAtual.horaEvento ?? cfgAtual.horaWebinario ?? '';
+  const urls = cfgAtual.notionUrls?.length ? cfgAtual.notionUrls : (cfgAtual.notionUrl ? [cfgAtual.notionUrl] : []);
+  $('in-urls').value = urls.join('\n');
+  const info = $('sync-info');
+  if (cfgAtual.syncedAt){
+    info.style.display='inline-flex';
+    info.textContent = `✓ ${cfgAtual.totalMensagens} msgs${cfgAtual.modoLivre ? ' · modo livre' : ''}`;
+  } else {
+    info.style.display='none';
+  }
+}
+
+$('sel-camp').addEventListener('change', async (e) => {
+  ridAtual = e.target.value;
+  aplicarCfg();
+  await recarregarItens();
+});
+
+// ─── Sync / salvar config ─────────────────────────────────────────────
+$('btn-sync').addEventListener('click', async () => {
+  const urls = $('in-urls').value.split(/[\n\r,]+/).map(s=>s.trim()).filter(Boolean);
+  if (!urls.length) return toast('Cole pelo menos uma URL do Notion');
+  const btn = $('btn-sync'); btn.disabled = true; btn.textContent = '⏳ Lendo...';
+  $('sync-erro').style.display = 'none';
+  try {
+    const body = { notionUrls: urls };
+    if (ridAtual) body.releaseId = ridAtual;
+    const r = await api('/api/wz/sync-notion', { method:'POST', body: JSON.stringify(body) });
+    toast(`✅ ${r.totalMensagens} mensagens sincronizadas`);
+    await carregarCampanhas();
+  } catch (e) {
+    $('sync-erro').style.display='block';
+    $('sync-erro').textContent = e.message;
+    toast('❌ ' + e.message);
+  }
+  btn.disabled = false; btn.textContent = '🔄 Sincronizar do Notion';
+});
+
+$('btn-salvar-cfg').addEventListener('click', async () => {
+  const data = $('in-data').value || null;
+  const hora = $('in-hora').value;
+  try {
+    const body = { dataReferencia: data };
+    if (hora !== '') body.horaEvento = Number(hora);
+    if (ridAtual) body.releaseId = ridAtual;
+    await api('/api/wz/config', { method:'POST', body: JSON.stringify(body) });
+    toast('✅ Configuração salva');
+    await carregarCampanhas();
+  } catch(e){ toast('❌ '+e.message); }
+});
+
+// ─── Load items ────────────────────────────────────────────────────────
+async function recarregarItens(){
+  const data = $('in-data').value || (cfgAtual.dataReferencia || cfgAtual.dataWebinario || '');
+  const qs = new URLSearchParams();
+  if (data) { qs.set('dataReferencia', data); qs.set('dataWebinario', data); }
+  if (ridAtual) qs.set('releaseId', ridAtual);
+  try {
+    itens = await api('/api/wz/preview?' + qs.toString());
+    if (!Array.isArray(itens)) itens = [];
+  } catch (e) {
+    itens = [];
+    if (e.message && !/dataReferencia obrigat/.test(e.message)) toast('⚠️ '+e.message);
+  }
+  // Agendados
+  try {
+    const params = new URLSearchParams({status:'pendente'});
+    if (ridAtual) params.set('releaseId', ridAtual);
+    agendadosCache = await api('/api/wz/agendados?' + params.toString());
+  } catch { agendadosCache = []; }
+  render();
+}
+
+// ─── Filtros / render ─────────────────────────────────────────────────
+document.querySelectorAll('.chip[data-filter]').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.chip[data-filter]').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    filtroAtual = c.dataset.filter;
+    render();
+  });
+});
+
+function statusDe(m, agora){
+  const ts = new Date(m.scheduledTo).getTime();
+  if (ts <= agora) return 'past';
+  const ja = agendadosCache.some(a => a.scheduledTo === m.scheduledTo && a.status === 'pendente');
+  if (ja) return 'agend';
+  return 'pend';
+}
+
+function render(){
+  const agora = Date.now();
+  // Contagens
+  const byTipo = { all: itens.length, enviar_mensagem:0, renomear_grupo:0, atualizar_descricao:0 };
+  itens.forEach(m => { const t = m.tipoAcao || 'enviar_mensagem'; if (byTipo[t] !== undefined) byTipo[t]++; });
+  $('ct-all').textContent = byTipo.all;
+  $('ct-msg').textContent = byTipo.enviar_mensagem;
+  $('ct-rn').textContent = byTipo.renomear_grupo;
+  $('ct-ds').textContent = byTipo.atualizar_descricao;
+
+  // Summary
+  let nPend=0, nAgend=0, nPast=0;
+  itens.forEach(m => { const s=statusDe(m,agora); if(s==='past')nPast++; else if(s==='agend')nAgend++; else nPend++; });
+  $('summary').innerHTML = `
+    <span class="pill pend">⏳ ${nPend} pendentes</span>
+    <span class="pill agend">✅ ${nAgend} agendadas</span>
+    ${nPast ? `<span class="pill past">⌛ ${nPast} passaram</span>` : ''}
+  `;
+
+  // Filtro
+  const lista = itens.filter(m => filtroAtual === 'all' ? true : (m.tipoAcao || 'enviar_mensagem') === filtroAtual);
+
+  const cards = $('cards');
+  if (!lista.length){
+    cards.innerHTML = `<div class="empty" style="flex:1"><span class="ico">📭</span>Nenhuma mensagem nesse filtro.<br>Sincronize do Notion ou crie manualmente com os botões acima.</div>`;
+    $('btn-agendar-todas').disabled = true;
+    return;
+  }
+  cards.innerHTML = lista.map(m => renderCard(m, agora)).join('');
+  $('btn-agendar-todas').disabled = nPend === 0;
+  $('btn-agendar-todas').textContent = nPend ? `🚀 Agendar ${nPend} pendente${nPend===1?'':'s'}` : '🚀 Nada pra agendar';
+}
+
+function renderCard(m, agora){
+  const id = m.id || '';
+  const prefixo = (m.prefixo || 'WZ').toUpperCase();
+  const status = statusDe(m, agora);
+  const statusTxt = { pend:'⏳ Pendente', agend:'✅ Agendada', past:'⌛ Passou' }[status];
+
+  let body;
+  if (m.tipoAcao === 'renomear_grupo'){
+    body = `<div class="sys-action rn"><div class="tipo">🏷️ Renomear grupo pra:</div><div class="valor">${esc(m.mensagem || '(vazio)')}</div></div>`;
+  } else if (m.tipoAcao === 'atualizar_descricao'){
+    body = `<div class="sys-action"><div class="tipo">📝 Atualizar descrição:</div><div class="valor">${esc(m.mensagem || '(vazio)')}</div></div>`;
+  } else {
+    const isVideo = m.tipo === 'video' || /\.(mp4|mov|webm)(?:\?|$)/i.test(m.imageUrl || '');
+    const midia = m.imageUrl
+      ? (isVideo
+          ? `<video src="${esc(m.imageUrl)}" controls preload="metadata" muted playsinline style="width:100%;border-radius:8px"></video>`
+          : `<img src="${esc(m.imageUrl)}" loading="lazy" alt="">`)
+      : '';
+    body = `
+      <div class="wa-bubble">
+        ${midia}
+        <div class="wa-text">${formatWA(m.mensagem || '(vazio)')}</div>
+        <div class="wa-time">${esc(horaBR(m.scheduledTo))} ✓✓</div>
+      </div>`;
+  }
+
+  const podeAgendar = status === 'pend';
+  const ehManual = m.origem === 'manual';
+  return `
+    <div class="card ${status}">
+      <div class="card-hdr">
+        <div class="badge ${prefixo}">${esc(id)}</div>
+        <div class="card-meta">
+          <div class="dia">${esc(diaSem(m.scheduledTo))}</div>
+          <div class="quando">${esc(horaBR(m.scheduledTo))}</div>
+        </div>
+        <span class="status ${status}">${statusTxt}</span>
+      </div>
+      <div class="card-body">${body}</div>
+      <div class="card-acoes">
+        <button class="btn primary wide" onclick="confirmarAgendar('${esc(id)}')" ${podeAgendar?'':'disabled'}>📅 Agendar agora</button>
+        <button class="btn sm" onclick="abrirEditarHorario('${esc(id)}')">✏️ Horário</button>
+        <button class="btn sm" onclick="abrirEditarTexto('${esc(id)}')">📝 Texto</button>
+        ${ehManual ? `<button class="btn sm danger wide" onclick="removerMensagem('${esc(id)}')">🗑️ Remover</button>` : ''}
+      </div>
+    </div>`;
+}
+
+// ─── Modais ───────────────────────────────────────────────────────────
+function abrirModal(titulo, bodyHtml, acoes){
+  $('modal-root').innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)fecharModal()">
+      <div class="modal">
+        <div class="modal-hdr"><h3>${titulo}</h3><button class="btn ghost" onclick="fecharModal()">✕</button></div>
+        <div class="modal-body">${bodyHtml}</div>
+        <div class="modal-ftr">${acoes}</div>
+      </div>
+    </div>`;
+}
+function fecharModal(){ $('modal-root').innerHTML=''; }
+
+window.abrirEditarHorario = (id) => {
+  const m = itens.find(x => x.id === id); if (!m) return;
+  const d = new Date(m.scheduledTo);
+  const dataVal = d.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}); // yyyy-mm-dd
+  const horaVal = horaBR(m.scheduledTo);
+  abrirModal(`✏️ Editar horário · ${esc(id)}`,
+    `<div class="field"><span class="lbl">Data</span><input type="date" id="m-data" class="input" value="${esc(dataVal)}"></div>
+     <div class="field"><span class="lbl">Hora</span><input type="time" id="m-hora" class="input" value="${esc(horaVal)}"></div>
+     <div class="hint">A data e hora são convertidas automaticamente pro fuso de Brasília.</div>`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button>
+     <button class="btn primary" onclick="salvarHorario('${esc(id)}')">💾 Salvar</button>`
+  );
+};
+
+window.salvarHorario = async (id) => {
+  const data = $('m-data').value, hora = $('m-hora').value;
+  if (!data || !hora) return toast('Preencha data e hora');
+  try {
+    const body = { id, absoluto: `${data}T${hora}` };
+    if (ridAtual) body.releaseId = ridAtual;
+    await api('/api/wz/mensagem', { method:'PATCH', body: JSON.stringify(body) });
+    fecharModal(); toast('✅ Horário atualizado');
+    await recarregarItens();
+  } catch(e){ toast('❌ '+e.message); }
+};
+
+window.abrirEditarTexto = (id) => {
+  const m = itens.find(x => x.id === id); if (!m) return;
+  const tipoAcao = m.tipoAcao || 'enviar_mensagem';
+  const label = tipoAcao === 'renomear_grupo' ? 'Novo nome do grupo'
+    : tipoAcao === 'atualizar_descricao' ? 'Nova descrição'
+    : 'Mensagem (aceita *negrito*, _itálico_, ~tachado~)';
+  const mostrarImg = tipoAcao === 'enviar_mensagem';
+  abrirModal(`📝 Editar texto · ${esc(id)}`,
+    `<div class="field"><span class="lbl">${esc(label)}</span>
+       <textarea id="m-texto" class="input" rows="7">${esc(m.mensagem || '')}</textarea></div>
+     ${mostrarImg ? `
+     <div class="field"><span class="lbl">URL da imagem (opcional)</span>
+       <input id="m-img" type="url" class="input" value="${esc(m.imageUrl || '')}" placeholder="https://...">
+       <span class="hint">Deixe vazio pra remover a imagem.</span></div>` : ''}`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button>
+     <button class="btn primary" onclick="salvarTexto('${esc(id)}', ${mostrarImg})">💾 Salvar</button>`
+  );
+};
+
+window.salvarTexto = async (id, comImg) => {
+  const mensagem = $('m-texto').value;
+  try {
+    const body = { id, mensagem };
+    if (comImg){ const v = $('m-img').value.trim(); body.imageUrl = v || null; }
+    if (ridAtual) body.releaseId = ridAtual;
+    await api('/api/wz/mensagem', { method:'PATCH', body: JSON.stringify(body) });
+    fecharModal(); toast('✅ Texto atualizado');
+    await recarregarItens();
+  } catch(e){ toast('❌ '+e.message); }
+};
+
+window.abrirCriarMensagem = (tipoAcao) => {
+  const hoje = new Date();
+  hoje.setDate(hoje.getDate() + 1);
+  const dataDefault = hoje.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+  const titulo = tipoAcao === 'renomear_grupo' ? '🏷️ Novo renomear de grupo'
+    : tipoAcao === 'atualizar_descricao' ? '📝 Nova atualização de descrição'
+    : '📨 Nova mensagem';
+  const lblTexto = tipoAcao === 'renomear_grupo' ? 'Novo nome do grupo'
+    : tipoAcao === 'atualizar_descricao' ? 'Nova descrição'
+    : 'Mensagem';
+  const mostrarImg = tipoAcao === 'enviar_mensagem';
+  abrirModal(titulo,
+    `<div class="grid-2">
+       <div class="field"><span class="lbl">Data</span><input type="date" id="c-data" class="input" value="${dataDefault}"></div>
+       <div class="field"><span class="lbl">Hora</span><input type="time" id="c-hora" class="input" value="10:00"></div>
+     </div>
+     <div class="field"><span class="lbl">Rótulo / descrição curta (opcional)</span>
+       <input type="text" id="c-label" class="input" placeholder="Ex: Abertura carrinho"></div>
+     <div class="field"><span class="lbl">${esc(lblTexto)}</span>
+       <textarea id="c-texto" class="input" rows="6"></textarea></div>
+     ${mostrarImg ? `
+     <div class="field"><span class="lbl">URL da imagem (opcional)</span>
+       <input id="c-img" type="url" class="input" placeholder="https://..."></div>` : ''}`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button>
+     <button class="btn primary" onclick="criarMensagem('${tipoAcao}', ${mostrarImg})">➕ Criar</button>`
+  );
+};
+
+window.criarMensagem = async (tipoAcao, comImg) => {
+  const data = $('c-data').value, hora = $('c-hora').value;
+  if (!data || !hora) return toast('Preencha data e hora');
+  const mensagem = $('c-texto').value;
+  const label = $('c-label').value;
+  try {
+    const body = { tipoAcao, absoluto: `${data}T${hora}`, mensagem, label };
+    if (comImg){ const v = $('c-img').value.trim(); if (v) body.imageUrl = v; }
+    if (ridAtual) body.releaseId = ridAtual;
+    await api('/api/wz/mensagem', { method:'POST', body: JSON.stringify(body) });
+    fecharModal(); toast('✅ Criada');
+    await recarregarItens();
+  } catch(e){ toast('❌ '+e.message); }
+};
+
+window.removerMensagem = async (id) => {
+  if (!confirm('Remover essa mensagem do cache? (não cancela se já foi agendada no Sendflow)')) return;
+  try {
+    const body = { id };
+    if (ridAtual) body.releaseId = ridAtual;
+    await api('/api/wz/mensagem', { method:'DELETE', body: JSON.stringify(body) });
+    toast('🗑️ Removida');
+    await recarregarItens();
+  } catch(e){ toast('❌ '+e.message); }
+};
+
+// ─── Agendar ─────────────────────────────────────────────────────────
+window.confirmarAgendar = (id) => {
+  const m = itens.find(x => x.id === id); if (!m) return;
+  abrirModal(`📅 Confirmar agendamento`,
+    `<div><strong>${esc(id)}</strong> será agendada para:<br>
+       <strong style="font-size:15px;color:var(--accent)">${esc(diaSem(m.scheduledTo))} · ${esc(horaBR(m.scheduledTo))}</strong></div>
+     <div style="padding:10px 12px;background:var(--wa-bg);border-radius:10px;font-size:13px;white-space:pre-wrap;max-height:200px;overflow:auto">${formatWA(m.mensagem || '(ação sem texto)')}</div>`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button>
+     <button class="btn primary" onclick="executarAgendar(['${esc(id)}'])">✅ Confirmar</button>`
+  );
+};
+
+document.getElementById('btn-agendar-todas').addEventListener('click', () => {
+  const agora = Date.now();
+  const pend = itens.filter(m => statusDe(m, agora) === 'pend');
+  if (!pend.length) return toast('Nada pra agendar');
+  _pendentesIds = pend.map(p => p.id);
+  abrirModal(`📅 Agendar ${pend.length} mensagens`,
+    `<div>Confirmar agendamento de <strong>${pend.length}</strong> ações?</div>
+     <div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px">
+       ${pend.map(m => `<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;font-size:12px">
+         <span class="badge ${(m.prefixo||'WZ').toUpperCase()}" style="min-width:38px">${esc(m.id)}</span>
+         <div style="flex:1">${esc(m.label || m.mensagem?.slice(0,40) || '')}</div>
+         <div class="mono" style="font-size:11px;color:var(--accent)">${esc(horaBR(m.scheduledTo))}</div>
+       </div>`).join('')}
+     </div>`,
+    `<button class="btn" onclick="fecharModal()">Cancelar</button>
+     <button class="btn primary" onclick="executarAgendar(_pendentesIds)">✅ Agendar ${pend.length}</button>`
+  );
+});
+
+window.executarAgendar = async (ids) => {
+  fecharModal();
+  try {
+    const body = { ids, ignorarValidacao: true };
+    if (ridAtual) body.releaseId = ridAtual;
+    const data = $('in-data').value;
+    if (data) { body.dataReferencia = data; body.dataWebinario = data; }
+    toast('⏳ Agendando...');
+    const r = await api('/api/wz/agendar', { method:'POST', body: JSON.stringify(body) });
+    const ok = (r.mensagens || []).filter(x=>x.ok).length + (r.locais || []).filter(x=>x.ok).length;
+    const erros = ((r.mensagens||[]).concat(r.locais||[])).filter(x=>!x.ok && !x.pulado);
+    if (erros.length) {
+      console.error('[agendar] erros:', erros);
+      const primeiro = erros[0];
+      const detalhe = primeiro.erro ? ` — ${primeiro.id}: ${primeiro.erro}` : '';
+      toast(`⚠️ ${ok} ok · ${erros.length} erro(s)${detalhe}`, 8000);
+    } else {
+      toast(`✅ ${ok} agendadas`);
+    }
+    await recarregarItens();
+  } catch(e){ toast('❌ '+e.message); }
+};
+
+// ─── Boot ────────────────────────────────────────────────────────────
+const ridDaUrl = new URLSearchParams(location.search).get('releaseId');
+if (ridDaUrl) ridAtual = ridDaUrl;
+carregarCampanhas();
+</script>
+</body>
+</html>

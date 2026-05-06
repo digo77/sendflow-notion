@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz PG Tropical — Thereza Vaz</title>
+  <meta name="description" content="Descubra como criar porta-guardanapos tropicais elegantes — mesmo sem experiência." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Lato:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --background: #FAF7F0;
+      --foreground: #2F3D26;
+      --card: #F5F1E7;
+      --primary: #5A7340;
+      --primary-foreground: #FAF7F0;
+      --secondary: #E5D9C5;
+      --muted: #EDE7DC;
+      --muted-foreground: #6B7359;
+      --accent: #6E8458;
+      --border: #DDD4C2;
+      --tropical-leaf: #5C7F3D;
+      --tropical-sand: #EBDDC4;
+      --tropical-cream: #F8F1E0;
+      --tropical-olive: #454F33;
+      --tropical-warm: #EFE3D6;
+      --radius: 0.75rem;
+      --shadow-soft: 0 4px 20px -4px rgba(47,61,38,0.08);
+      --shadow-card: 0 8px 30px -8px rgba(47,61,38,0.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Lato', sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    h1,h2,h3,h4,h5,h6 { font-family: 'Playfair Display', serif; }
+    img { max-width: 100%; display: block; }
+    a { text-decoration: none; }
+
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+    @keyframes scaleIn  { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+    @keyframes float    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    @keyframes pulseSubtle { 0%,100%{opacity:1} 50%{opacity:0.85} }
+    @keyframes flashSubtle {
+      0%,100%{box-shadow:0 0 0 0 rgba(90,115,64,0)}
+      50%    {box-shadow:0 0 12px 2px rgba(90,115,64,0.35)}
+    }
+
+    .hidden { display: none !important; }
+
+    .bg-texture {
+      background-image:
+        radial-gradient(rgba(47,61,38,0.035) 1px, transparent 1px),
+        radial-gradient(rgba(90,115,64,0.03)  1px, transparent 1px);
+      background-size: 28px 28px, 44px 44px;
+      background-position: 0 0, 14px 14px;
+    }
+
+    .screen { min-height: 100vh; position: relative; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      background: var(--primary); color: var(--primary-foreground);
+      padding: 1rem 2rem; border-radius: 9999px;
+      font-family: 'Lato', sans-serif; font-weight: 600; font-size: 1rem;
+      box-shadow: var(--shadow-card); border: none; cursor: pointer;
+      transition: transform .3s, box-shadow .3s;
+    }
+    .btn-primary:hover { transform: scale(1.04); box-shadow: 0 12px 40px -8px rgba(47,61,38,0.25); }
+    .btn-primary:active { transform: scale(0.98); }
+
+    /* ── BADGE / CHIP ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(90,115,64,0.15); color: var(--primary);
+      padding: .35rem .9rem; border-radius: 9999px;
+      font-size: .8rem; font-weight: 600; letter-spacing: .04em;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: rgba(90,115,64,0.12); color: var(--primary);
+      padding: .35rem .9rem; border-radius: 9999px;
+      font-size: .8rem; font-weight: 600;
+    }
+
+    /* ── PROGRESS ── */
+    .progress-track { height: 6px; background: var(--muted); border-radius: 9999px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: var(--primary); border-radius: 9999px; transition: width .5s ease; }
+
+    /* ════════════════════════════════
+       WELCOME
+    ════════════════════════════════ */
+    .welcome-overlay {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(to bottom, var(--tropical-cream), var(--background), var(--tropical-warm));
+      opacity: .7;
+    }
+    .welcome-inner {
+      position: relative; z-index: 1;
+      max-width: 480px; margin: 0 auto;
+      padding: 2rem 1.25rem 7rem;
+    }
+    .welcome-hero {
+      border-radius: 1rem; overflow: hidden; aspect-ratio: 4/3;
+      margin-bottom: 2rem; box-shadow: var(--shadow-card);
+      animation: fadeInUp .6s ease-out both;
+    }
+    .welcome-hero img { width:100%; height:100%; object-fit:cover; object-position:50% 25%; }
+
+    .leaf-icon {
+      display: flex; align-items: center; justify-content: center;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--tropical-sand); margin: 0 auto 1.5rem;
+      color: var(--primary); animation: float 3s ease-in-out infinite;
+    }
+
+    .welcome-h1 {
+      font-size: clamp(1.75rem, 5vw, 2.5rem); font-weight: 700;
+      line-height: 1.2; text-align: center; margin-bottom: 1rem;
+      animation: fadeInUp .6s .15s ease-out both;
+    }
+    .welcome-h1 .hl { color: var(--primary); }
+
+    .welcome-sub {
+      font-size: 1.05rem; color: var(--muted-foreground);
+      text-align: center; line-height: 1.65; margin-bottom: 1.5rem;
+      animation: fadeInUp .6s .25s ease-out both;
+    }
+
+    .welcome-invite {
+      font-style: italic; font-size: .95rem; color: var(--muted-foreground);
+      text-align: center; line-height: 1.7; margin-bottom: 2rem;
+      padding: 1rem; border-left: 3px solid var(--tropical-sand);
+      background: rgba(235,221,196,.2);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      animation: fadeInUp .6s .35s ease-out both;
+    }
+
+    .welcome-cta { display:flex; flex-direction:column; align-items:center; gap:.75rem; animation: fadeInUp .6s .45s ease-out both; }
+    .welcome-trust { display:flex; align-items:center; gap:.5rem; font-size:.8rem; color:var(--muted-foreground); }
+    .dot { width:4px;height:4px;border-radius:50%;background:var(--tropical-sand);flex-shrink:0; }
+
+    /* Sticky CTA */
+    #sticky-cta {
+      position: fixed; bottom:0; left:0; right:0; z-index:100;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(to top, var(--background) 80%, transparent);
+      display: flex; justify-content: center;
+      opacity: 0; transform: translateY(100%);
+      transition: opacity .4s, transform .4s;
+      pointer-events: none;
+    }
+    #sticky-cta.visible { opacity:1; transform:translateY(0); pointer-events:auto; }
+    #sticky-cta .btn-primary { width:100%; max-width:400px; animation: flashSubtle 2s ease-in-out infinite; }
+
+    /* ════════════════════════════════
+       QUESTION
+    ════════════════════════════════ */
+    .q-header {
+      position:sticky; top:0; z-index:10;
+      background:var(--background); border-bottom:1px solid var(--border);
+      padding: .75rem 1.25rem;
+    }
+    .q-header-inner { max-width:480px; margin:0 auto; }
+    .q-step { font-size:.75rem; color:var(--muted-foreground); font-weight:500; letter-spacing:.04em; text-transform:uppercase; margin-bottom:.5rem; }
+
+    .q-inner { max-width:480px; margin:0 auto; padding:1.5rem 1.25rem 6rem; }
+
+    .q-img {
+      border-radius:var(--radius); overflow:hidden; aspect-ratio:1/1;
+      margin: 0 auto 1.5rem; box-shadow:var(--shadow-soft);
+      max-width:384px; animation: scaleIn .4s ease-out both;
+    }
+    .q-img img { width:100%;height:100%;object-fit:cover; }
+
+    .q-phrase { font-size:.8rem; color:var(--muted-foreground); font-style:italic; text-align:center; margin-bottom:1rem; }
+
+    .q-title  { font-size:clamp(1.2rem,4vw,1.7rem); font-weight:600; line-height:1.3; text-align:center; margin-bottom:.5rem; }
+    .q-sub    { font-size:.9rem; color:var(--muted-foreground); font-style:italic; text-align:center; line-height:1.6; margin-bottom:1.5rem; }
+
+    .options  { display:flex; flex-direction:column; gap:.75rem; }
+
+    .opt {
+      width:100%; padding:.875rem 1rem; border-radius:var(--radius);
+      border:2px solid var(--border); background:var(--card);
+      text-align:left; display:flex; align-items:center; gap:.75rem;
+      cursor:pointer; transition:all .25s;
+      font-family:'Lato',sans-serif; font-size:.95rem; color:var(--foreground);
+    }
+    .opt:hover:not(:disabled) { border-color:rgba(90,115,64,.5); background:rgba(90,115,64,.05); }
+    .opt.selected { border-color:var(--primary); background:rgba(90,115,64,.1); }
+    .opt.dim { opacity:.5; }
+    .opt:disabled { cursor:default; }
+    .opt-emoji { font-size:1.25rem; flex-shrink:0; }
+    .opt-text  { flex:1; line-height:1.4; }
+    .opt-check {
+      flex-shrink:0; width:20px; height:20px; border-radius:50%;
+      background:var(--primary); display:flex; align-items:center; justify-content:center;
+      opacity:0; transform:scale(0); transition:all .25s;
+    }
+    .opt.selected .opt-check { opacity:1; transform:scale(1); }
+
+    /* Feedback */
+    #feedback {
+      position:fixed; top:50%; left:50%;
+      transform:translate(-50%,-50%) scale(.9);
+      z-index:200; background:var(--card);
+      border:1px solid var(--border); border-radius:9999px;
+      padding:.875rem 1.75rem; font-size:1rem; font-weight:600;
+      color:var(--primary); box-shadow:var(--shadow-card);
+      opacity:0; transition:all .25s; pointer-events:none; white-space:nowrap;
+    }
+    #feedback.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+
+    /* ════════════════════════════════
+       RESULT
+    ════════════════════════════════ */
+    .r-header {
+      background: linear-gradient(135deg, var(--tropical-cream), var(--tropical-sand));
+      padding: 2rem 1.25rem; text-align:center; border-bottom:1px solid var(--border);
+    }
+    .r-header .badge { margin-bottom:1rem; }
+    .r-title { font-size:clamp(2rem,6vw,3rem); font-weight:700; color:var(--primary); line-height:1.1; }
+    .r-subtitle { font-size:1.5rem; font-weight:600; color:var(--foreground); margin-top:.25rem; }
+
+    .r-inner { max-width:480px; margin:0 auto; padding:0 1.25rem 6rem; }
+
+    /* sections */
+    .r-section { padding:2rem 0; border-bottom:1px solid var(--border); }
+    .r-section:last-child { border-bottom:none; }
+    .r-h2 { font-size:1.3rem; font-weight:600; margin-bottom:1.25rem; }
+
+    /* welcome block */
+    .r-ready { display:inline-flex;align-items:center;gap:.4rem;background:rgba(90,115,64,.12);color:var(--primary);padding:.4rem 1rem;border-radius:9999px;font-size:.85rem;font-weight:600;margin-bottom:1rem; }
+    .r-welcome-h2 { font-size:1.4rem;font-weight:600;line-height:1.35;margin-bottom:1rem; }
+    .r-avatar-row { display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem; }
+    .r-avatar { width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid var(--tropical-sand);flex-shrink:0; }
+    .r-avatar-lbl { font-weight:600;font-size:.9rem; }
+    .r-avatar-sub { font-size:.8rem;color:var(--muted-foreground); }
+    .r-hero { border-radius:var(--radius);overflow:hidden;aspect-ratio:4/3;box-shadow:var(--shadow-soft); }
+    .r-hero img { width:100%;height:100%;object-fit:cover; }
+
+    /* pills */
+    .pills { display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem; }
+    .pill { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem .75rem;text-align:center;box-shadow:var(--shadow-soft); }
+    .pill-em  { font-size:1.5rem;margin-bottom:.5rem; }
+    .pill-txt { font-size:.78rem;color:var(--muted-foreground);line-height:1.4;font-weight:500; }
+
+    /* carousel */
+    .c-wrap   { position:relative; border-radius:var(--radius); overflow:hidden; }
+    .c-outer  { overflow:hidden; border-radius:var(--radius); }
+    .c-track  { display:flex; transition:transform .45s cubic-bezier(.4,0,.2,1); }
+    .c-slide  { flex-shrink:0; width:100%; aspect-ratio:4/3; }
+    .c-slide img { width:100%;height:100%;object-fit:cover; }
+    .c-btn {
+      position:absolute; top:50%; transform:translateY(-50%);
+      background:rgba(250,247,240,.9); border:1px solid var(--border);
+      border-radius:50%; width:36px;height:36px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;z-index:2;transition:all .2s;color:var(--foreground);
+    }
+    .c-btn:hover { background:var(--card);box-shadow:var(--shadow-soft); }
+    .c-btn.prev { left:8px; }
+    .c-btn.next { right:8px; }
+    .c-dots { display:flex;justify-content:center;gap:.5rem;margin-top:.75rem; }
+    .c-dot  { width:8px;height:8px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s;border:none; }
+    .c-dot.active { background:var(--primary);transform:scale(1.2); }
+
+    /* what you get */
+    .get-list { list-style:none;display:flex;flex-direction:column;gap:.875rem; }
+    .get-item { display:flex;align-items:flex-start;gap:.75rem;font-size:.95rem;line-height:1.5; }
+    .get-ic   { flex-shrink:0;width:22px;height:22px;background:rgba(90,115,64,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:1px;color:var(--primary); }
+
+    /* doubts */
+    .doubts-grid { display:grid;grid-template-columns:1fr 1fr;gap:.875rem; }
+    .doubt-card  { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem; }
+    .doubt-ttl   { font-family:'Playfair Display',serif;font-size:.9rem;font-weight:600;color:var(--primary);font-style:italic;margin-bottom:.5rem; }
+    .doubt-txt   { font-size:.82rem;color:var(--muted-foreground);line-height:1.55; }
+
+    /* pricing */
+    .pricing-wrap { text-align:center; }
+    .pricing-wrap .badge { margin-bottom:.75rem; }
+    .pricing-chip { display:inline-flex;align-items:center;gap:.35rem;background:var(--tropical-sand);color:var(--tropical-olive);padding:.35rem .9rem;border-radius:9999px;font-size:.8rem;font-weight:600;margin-bottom:1rem; }
+    .pricing-wrap h2 { font-size:1.5rem;font-weight:700;margin-bottom:1.5rem; }
+    .pricing-card { background:var(--card);border:2px solid var(--primary);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow-card);margin-bottom:1.25rem; }
+    .pricing-card .badge { margin-bottom:1rem; }
+    .pricing-card-ttl  { font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;margin-bottom:.25rem; }
+    .pricing-card-desc { font-size:.85rem;color:var(--muted-foreground);margin-bottom:1.25rem; }
+    .pricing-price { font-size:1.5rem;font-weight:700;margin-bottom:.25rem; }
+    .pricing-alt   { font-size:.85rem;color:var(--muted-foreground);margin-bottom:1.25rem; }
+    .pricing-feats { list-style:none;display:flex;flex-direction:column;gap:.6rem;text-align:left;margin-bottom:1.5rem; }
+    .pricing-feat  { display:flex;align-items:center;gap:.6rem;font-size:.9rem; }
+    .pf-ic { color:var(--primary);flex-shrink:0; }
+
+    /* faq */
+    details.faq-item { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden; }
+    details.faq-item[open] { border-color:var(--primary); }
+    details.faq-item + details.faq-item { margin-top:.5rem; }
+    summary.faq-q {
+      padding:1rem; cursor:pointer; font-weight:600; font-size:.9rem;
+      display:flex;justify-content:space-between;align-items:center;
+      list-style:none; color:var(--foreground); user-select:none;
+    }
+    summary.faq-q::-webkit-details-marker { display:none; }
+    summary.faq-q::after { content:'+';font-size:1.25rem;color:var(--primary);flex-shrink:0;margin-left:.5rem; }
+    details.faq-item[open] summary.faq-q::after { content:'−'; }
+    .faq-a { padding:0 1rem 1rem;font-size:.875rem;color:var(--muted-foreground);line-height:1.65; }
+
+    /* bio */
+    .bio-avatar-wrap { width:80px;height:80px;border-radius:50%;overflow:hidden;border:4px solid rgba(90,115,64,.2);margin:0 auto 1rem; }
+    .bio-avatar-wrap img { width:100%;height:100%;object-fit:cover; }
+    .bio-h3  { font-size:1.2rem;font-weight:700;text-align:center;margin-bottom:1rem; }
+    .bio-txt { font-size:.9rem;color:var(--muted-foreground);line-height:1.7;text-align:center; }
+
+    /* final img */
+    .final-img { border-radius:var(--radius);overflow:hidden;aspect-ratio:4/3;box-shadow:var(--shadow-soft);margin-bottom:1rem; }
+    .final-img img { width:100%;height:100%;object-fit:cover; }
+    .final-cap { font-style:italic;text-align:center;color:var(--muted-foreground);font-size:.9rem; }
+
+    /* FOMO */
+    #fomo {
+      position:fixed;bottom:0;left:0;right:0;z-index:100;
+      background:var(--primary);color:var(--primary-foreground);
+      padding:.75rem 1.25rem;
+      display:flex;align-items:center;justify-content:space-between;gap:1rem;
+      box-shadow:0 -4px 20px rgba(47,61,38,.2);
+    }
+    .fomo-txt { font-size:.85rem;font-weight:500;opacity:.9; }
+    .fomo-btn {
+      display:inline-flex;align-items:center;gap:.35rem;
+      background:var(--primary-foreground);color:var(--primary);
+      padding:.6rem 1.25rem;border-radius:9999px;
+      font-weight:700;font-size:.85rem;white-space:nowrap;
+      text-decoration:none;transition:transform .2s;
+    }
+    .fomo-btn:hover { transform:scale(1.04); }
+
+    /* responsive */
+    @media (max-width: 400px) {
+      .doubts-grid { grid-template-columns:1fr; }
+      .pills { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body class="bg-texture">
+
+  <!-- ═══════════════ WELCOME ═══════════════ -->
+  <div id="screen-welcome" class="screen">
+    <div class="welcome-overlay"></div>
+    <div class="welcome-inner">
+
+      <div class="welcome-hero">
+        <img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/GRG06343-scaled.webp"
+             alt="Mesa posta com porta-guardanapos tropicais" loading="eager" />
+      </div>
+
+      <div class="leaf-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/>
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+        </svg>
+      </div>
+
+      <h1 class="welcome-h1">
+        Sua mesa pode ser mais do que um lugar para comer.<br>
+        <span class="hl">Ela pode ser um gesto de carinho.</span>
+      </h1>
+
+      <p class="welcome-sub">
+        Descubra como criar porta-guardanapos tropicais elegantes, mesmo sem experiência,
+        e transformar o simples em especial.
+      </p>
+
+      <p class="welcome-invite">
+        Um convite para desacelerar, se inspirar<br>
+        e descobrir uma experiência criativa feita para você.
+      </p>
+
+      <div class="welcome-cta">
+        <button class="btn-primary" onclick="startQuiz()"
+                style="width:100%;max-width:360px;font-size:1.1rem;padding:1.1rem 2rem;">
+          Quero viver essa experiência 🌿
+        </button>
+        <div class="welcome-trust">
+          <span class="dot"></span> Leva menos de 2 minutos
+          <span class="dot"></span> 100% gratuito
+          <span class="dot"></span> Sem cadastro
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sticky-cta">
+    <button class="btn-primary" onclick="startQuiz()">
+      Quero viver essa experiência 🌿
+    </button>
+  </div>
+
+  <!-- ═══════════════ QUESTION ═══════════════ -->
+  <div id="screen-question" class="screen hidden">
+    <div class="q-header">
+      <div class="q-header-inner">
+        <div class="q-step" id="q-step">Pergunta 1 de 8</div>
+        <div class="progress-track">
+          <div class="progress-fill" id="q-progress" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+    <div class="q-inner" id="q-inner">
+      <div class="q-img"><img id="q-img" src="" alt="" /></div>
+      <p class="q-phrase" id="q-phrase"></p>
+      <h2 class="q-title" id="q-title"></h2>
+      <p class="q-sub"   id="q-sub"></p>
+      <div class="options" id="q-options"></div>
+    </div>
+  </div>
+
+  <div id="feedback"></div>
+
+  <!-- ═══════════════ RESULT ═══════════════ -->
+  <div id="screen-result" class="screen hidden">
+
+    <div class="r-header">
+      <div class="badge">✨ Acesso Imediato</div>
+      <h1 class="r-title">Aula Completa</h1>
+      <p class="r-subtitle">PG Tropical</p>
+    </div>
+
+    <div class="r-inner">
+
+      <!-- welcome block -->
+      <div class="r-section" style="animation:fadeInUp .6s ease-out both">
+        <div class="r-ready">🌿 Seu resultado está pronto!</div>
+        <h2 class="r-welcome-h2">Você é exatamente a pessoa certa para essa experiência.</h2>
+        <div class="r-avatar-row">
+          <img class="r-avatar"
+               src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-holding-a-piece-of-food-1.webp"
+               alt="Thereza Vaz" />
+          <div>
+            <div class="r-avatar-lbl">Aula Gravada</div>
+            <div class="r-avatar-sub">Acesso imediato após a compra</div>
+          </div>
+        </div>
+        <div class="r-hero">
+          <img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-holding-a-piece-of-food-1.webp"
+               alt="Thereza Vaz" loading="lazy" />
+        </div>
+      </div>
+
+      <!-- 3 pills -->
+      <div class="r-section" style="animation:fadeInUp .6s .05s ease-out both">
+        <div class="pills">
+          <div class="pill"><div class="pill-em">🌱</div><div class="pill-txt">Você não precisa de experiência</div></div>
+          <div class="pill"><div class="pill-em">🤝</div><div class="pill-txt">Você não estará sozinha</div></div>
+          <div class="pill"><div class="pill-em">✨</div><div class="pill-txt">É simples, possível e prazeroso</div></div>
+        </div>
+      </div>
+
+      <!-- carousel -->
+      <div class="r-section" style="animation:fadeInUp .6s .1s ease-out both">
+        <div class="chip" style="margin-bottom:1rem">✨ O que você vai criar</div>
+        <h2 class="r-h2">Seus porta-guardanapos tropicais, com acabamento lindo</h2>
+        <p style="font-size:.9rem;color:var(--muted-foreground);line-height:1.65;margin-bottom:1.25rem">
+          Você vai aprender o passo a passo e as escolhas de composição pra criar um resultado
+          elegante, natural e com cara de mesa posta profissional.
+        </p>
+        <div class="c-wrap">
+          <div class="c-outer">
+            <div class="c-track" id="c-track">
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/GRG06343-scaled.webp" alt="Mesa posta" loading="lazy"/></div>
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-plate-with-a-napkin-on-it-6.webp" alt="Guardanapo decorado" loading="lazy"/></div>
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-plate-with-a-flower-on-it-2.webp" alt="Flor tropical" loading="lazy"/></div>
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-person-holding-a-napkin-over-a-plate.webp" alt="Guardanapo" loading="lazy"/></div>
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-bunch-of-flowers-on-a-table-1.webp" alt="Flores tropicais" loading="lazy"/></div>
+              <div class="c-slide"><img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-table-with-a-bunch-of-flowers-on-it.webp" alt="Mesa com flores" loading="lazy"/></div>
+            </div>
+          </div>
+          <button class="c-btn prev" onclick="cPrev()" aria-label="Anterior">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="c-btn next" onclick="cNext()" aria-label="Próxima">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <div class="c-dots" id="c-dots"></div>
+      </div>
+
+      <!-- what you get -->
+      <div class="r-section" style="animation:fadeInUp .6s .15s ease-out both">
+        <h2 class="r-h2">O que você recebe</h2>
+        <ul class="get-list">
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Aula gravada com passo a passo do início ao fim</li>
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Lista de materiais simples e acessíveis</li>
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Dicas de composição: cores, texturas e equilíbrio</li>
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Acabamentos para deixar o resultado com cara de peça vendável</li>
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Material de apoio digital</li>
+          <li class="get-item"><span class="get-ic"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Acesso por 90 dias para rever quando quiser</li>
+        </ul>
+      </div>
+
+      <!-- doubts -->
+      <div class="r-section" style="animation:fadeInUp .6s .2s ease-out both">
+        <h2 class="r-h2">Dúvidas comuns (e respostas honestas)</h2>
+        <div class="doubts-grid">
+          <div class="doubt-card"><div class="doubt-ttl">'Eu nunca fiz isso'</div><div class="doubt-txt">Perfeito. A aula é pensada pra iniciantes, com passo a passo simples e ritmo gostoso.</div></div>
+          <div class="doubt-card"><div class="doubt-ttl">'Não sei quais materiais comprar'</div><div class="doubt-txt">Você recebe uma lista completa, com opções acessíveis e alternativas.</div></div>
+          <div class="doubt-card"><div class="doubt-ttl">'Tenho medo de não acompanhar'</div><div class="doubt-txt">Você tem a gravação por 90 dias pra rever no seu tempo, quantas vezes quiser.</div></div>
+          <div class="doubt-card"><div class="doubt-ttl">'E se eu tiver dúvidas?'</div><div class="doubt-txt">Você pode rever a aula quantas vezes precisar e tem acesso ao material de apoio completo.</div></div>
+        </div>
+      </div>
+
+      <!-- pricing -->
+      <div id="pricing" class="r-section pricing-wrap" style="animation:fadeInUp .6s .25s ease-out both">
+        <div class="badge">✨ Acesso Imediato</div>
+        <div class="pricing-chip">🌿 Garanta sua experiência</div>
+        <h2>Garanta seu acesso agora</h2>
+        <div class="pricing-card">
+          <div class="badge">✨ Acesso Imediato</div>
+          <div class="pricing-card-ttl">Acesso Completo</div>
+          <div class="pricing-card-desc">Experiência completa</div>
+          <div class="pricing-price">10x R$11,66</div>
+          <div class="pricing-alt">ou R$97,00 à vista</div>
+          <ul class="pricing-feats">
+            <li class="pricing-feat">
+              <span class="pf-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+              Aula completa gravada
+            </li>
+            <li class="pricing-feat">
+              <span class="pf-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+              Gravação disponível por 90 dias
+            </li>
+            <li class="pricing-feat">
+              <span class="pf-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+              Material de apoio completo
+            </li>
+            <li class="pricing-feat">
+              <span class="pf-ic"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></span>
+              Lista de materiais inclusa
+            </li>
+          </ul>
+          <a href="https://pay.hotmart.com/N105152153O" target="_self" class="btn-primary"
+             style="width:100%;font-size:1.05rem;padding:1.1rem 2rem;animation:pulseSubtle 2s ease-in-out infinite">
+            Garantir Meu Acesso 🌿
+          </a>
+        </div>
+      </div>
+
+      <!-- faq -->
+      <div class="r-section" style="animation:fadeInUp .6s .3s ease-out both">
+        <h2 class="r-h2">Perguntas frequentes</h2>
+        <details class="faq-item">
+          <summary class="faq-q">Preciso ter experiência com artesanato?</summary>
+          <p class="faq-a">Não! A aula foi pensada para iniciantes. Você será guiada passo a passo, do básico ao acabamento final.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Quais materiais vou precisar?</summary>
+          <p class="faq-a">Após a compra, você receberá uma lista completa. São itens simples e acessíveis que você encontra em papelarias ou lojas de artesanato.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Posso assistir mais de uma vez?</summary>
+          <p class="faq-a">Sim! Você tem acesso à gravação por 90 dias para assistir quantas vezes quiser, no seu ritmo.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Como vou receber o acesso?</summary>
+          <p class="faq-a">Após a confirmação do pagamento, você receberá um e-mail com o link de acesso e todas as instruções.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-q">Posso pedir reembolso?</summary>
+          <p class="faq-a">Sim, você tem 7 dias de garantia incondicional. Se por qualquer motivo não gostar, devolvemos 100% do seu investimento.</p>
+        </details>
+      </div>
+
+      <!-- bio -->
+      <div class="r-section" style="animation:fadeInUp .6s .35s ease-out both">
+        <div class="bio-avatar-wrap">
+          <img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-holding-a-piece-of-food-1.webp" alt="Thereza Vaz" loading="lazy" />
+        </div>
+        <h3 class="bio-h3">Quem é The Vaz?</h3>
+        <p class="bio-txt">
+          Sou arquiteta e especialista em Mesa Posta, com mais de 335 mil seguidores no Instagram.<br><br>
+          Acredito que nada acontece por acaso e que você chegou até aqui por um motivo. Vou te ensinar
+          de forma clara e acessível como produzir porta guardanapos lindos e faturar em um mercado lucrativo.
+        </p>
+      </div>
+
+      <!-- final image -->
+      <div class="r-section" style="animation:fadeInUp .6s .4s ease-out both">
+        <div class="final-img">
+          <img src="https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-sitting-at-a-table-with-a-plate-of-food-3.webp"
+               alt="Mesa dos sonhos" loading="lazy" />
+        </div>
+        <p class="final-cap">"A sua mesa dos sonhos está a um passo de distância 🌿"</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOMO banner -->
+  <div id="fomo" class="hidden">
+    <span class="fomo-txt">Oferta por tempo limitado</span>
+    <a href="#pricing" class="fomo-btn" onclick="scrollPricing(event)">Garantir acesso</a>
+  </div>
+
+  <script>
+    // ── DATA ──
+    const QUESTIONS = [
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-table-with-a-plate-of-food-on-it.webp',
+        title: 'O que uma mesa bem posta representa para você?',
+        sub: 'Pense no momento em que você olha para uma mesa preparada com carinho...',
+        opts: [
+          {e:'💚', t:'Um gesto de amor e cuidado'},
+          {e:'✨', t:'Uma forma de expressão pessoal'},
+          {e:'🤍', t:'Um momento de conexão com quem amo'},
+          {e:'🌿', t:'Uma pausa na correria do dia a dia'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-person-holding-a-flower-in-their-hand.webp',
+        title: 'Como você se sente quando recebe pessoas em casa?',
+        sub: 'Aquele momento em que a casa se enche de vozes e sorrisos...',
+        opts: [
+          {e:'💫', t:'Feliz, mas um pouco ansiosa para que tudo fique perfeito'},
+          {e:'🌸', t:'Realizada em criar momentos especiais'},
+          {e:'⏰', t:'Gostaria de ter mais tempo para preparar os detalhes'},
+          {e:'💚', t:'Amo receber, é quando me sinto mais viva'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-bunch-of-flowers-on-a-table-1.webp',
+        title: 'Você já criou algo com as próprias mãos?',
+        sub: 'Pode ser qualquer coisa: uma receita, um arranjo, uma decoração...',
+        opts: [
+          {e:'🎨', t:'Sim, e adoro! Me faz bem criar'},
+          {e:'🤝', t:'Já tentei, mas acho que preciso de ajuda'},
+          {e:'✨', t:'Tenho vontade, mas nunca tive oportunidade'},
+          {e:'🌱', t:'Não muito, mas estou curiosa para começar'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-sitting-at-a-table-with-a-plate-of-food-3.webp',
+        title: 'O que te faz mais feliz em um momento especial?',
+        sub: 'Aquele detalhe que transforma o comum em extraordinário...',
+        opts: [
+          {e:'👀', t:'Ver os olhos de quem eu amo brilhando'},
+          {e:'💝', t:'Saber que cada detalhe foi pensado por mim'},
+          {e:'⏸️', t:'A sensação de que o tempo parou'},
+          {e:'📸', t:'As fotos que vou guardar para sempre'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-person-holding-a-napkin-over-a-plate.webp',
+        title: 'Qual sensação você quer transmitir aos seus convidados?',
+        sub: 'A energia que você quer que sintam ao sentar à sua mesa...',
+        opts: [
+          {e:'🏠', t:'Acolhimento e conforto'},
+          {e:'🌿', t:'Elegância com simplicidade'},
+          {e:'🎉', t:'Alegria e descontração'},
+          {e:'✨', t:'Sofisticação artesanal'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-table-with-a-bunch-of-flowers-on-it.webp',
+        title: 'Você prefere aprender...',
+        sub: 'Cada pessoa tem seu jeito único de absorver conhecimento...',
+        opts: [
+          {e:'👐', t:'Fazendo junto, passo a passo'},
+          {e:'👁️', t:'Assistindo primeiro, depois praticando'},
+          {e:'📖', t:'Com materiais de apoio para consultar depois'},
+          {e:'👯', t:'Em grupo, com outras pessoas'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-woman-holding-a-piece-of-food-1.webp',
+        title: 'O que te impede de colocar mais criatividade na rotina?',
+        sub: 'Seja honesta consigo mesma, sem julgamentos...',
+        opts: [
+          {e:'⏰', t:'Falta de tempo'},
+          {e:'🤔', t:'Não sei por onde começar'},
+          {e:'😟', t:'Medo de não ficar bonito'},
+          {e:'💭', t:'Falta de inspiração ou ideias'},
+        ]
+      },
+      {
+        img: 'https://escoladoportaguardanapo.com.br/wp-content/uploads/2026/01/a-person-holding-a-napkin-over-a-plate-1.webp',
+        title: 'Qual dessas peças tropicais mais combina com você?',
+        sub: 'Deixe seu coração escolher...',
+        opts: [
+          {e:'🌸', t:'A delicada, com detalhes sutis'},
+          {e:'🌺', t:'A vibrante, que chama atenção'},
+          {e:'🍃', t:'A natural, com texturas orgânicas'},
+          {e:'💫', t:'A versátil, que combina com tudo'},
+        ]
+      }
+    ];
+
+    const PHRASES = [
+      'Você está começando uma jornada especial...',
+      'Cada resposta te aproxima da sua mesa ideal...',
+      'Você está criando algo bonito...',
+      'Suas escolhas revelam seu estilo único...',
+      'A magia está se formando...',
+      'Quase lá... sua experiência está tomando forma...',
+      'Você está prestes a descobrir algo especial...',
+      'O resultado está sendo preparado para você...',
+    ];
+
+    const FEEDBACKS = [
+      'Que escolha linda! 🌿',
+      'Isso combina com você!',
+      'Adorei essa resposta!',
+      'Perfeito para sua jornada!',
+      'Você tem um olhar especial!',
+      'Essa escolha diz muito sobre você!',
+    ];
+
+    // ── STATE ──
+    let curQ = 0;
+    let cIdx  = 0;
+    let cTimer = null;
+    const TOTAL = QUESTIONS.length;
+    const C_TOTAL = 6;
+
+    // ── WELCOME ──
+    function startQuiz() {
+      showScreen('question');
+      renderQ(0);
+    }
+
+    // sticky CTA
+    const stickyCTA = document.getElementById('sticky-cta');
+    let stickyShown = false;
+    function showSticky() {
+      if (stickyShown) return;
+      if (!document.getElementById('screen-welcome').classList.contains('hidden')) {
+        stickyShown = true;
+        stickyCTA.classList.add('visible');
+      }
+    }
+    setTimeout(showSticky, 4000);
+    window.addEventListener('scroll', () => { if (window.scrollY > 200) showSticky(); }, {passive:true});
+
+    // ── SCREEN SWITCH ──
+    function showScreen(name) {
+      ['welcome','question','result'].forEach(s => {
+        document.getElementById('screen-' + s).classList.toggle('hidden', s !== name);
+      });
+      stickyCTA.classList.toggle('hidden', name !== 'welcome');
+      document.getElementById('fomo').classList.toggle('hidden', name !== 'result');
+      window.scrollTo({top:0, behavior:'instant'});
+    }
+
+    // ── RENDER QUESTION ──
+    function renderQ(idx) {
+      const q = QUESTIONS[idx];
+      const pct = Math.round((idx / TOTAL) * 100);
+
+      document.getElementById('q-step').textContent = `Pergunta ${idx+1} de ${TOTAL}`;
+      document.getElementById('q-progress').style.width = pct + '%';
+      document.getElementById('q-phrase').textContent = PHRASES[idx];
+      document.getElementById('q-img').src = q.img;
+      document.getElementById('q-img').alt = q.title;
+      document.getElementById('q-title').textContent = q.title;
+      document.getElementById('q-sub').textContent   = q.sub;
+
+      const el = document.getElementById('q-options');
+      el.innerHTML = '';
+      q.opts.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'opt';
+        btn.innerHTML = `
+          <span class="opt-emoji">${opt.e}</span>
+          <span class="opt-text">${opt.t}</span>
+          <span class="opt-check">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none"
+                 stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </span>`;
+        btn.addEventListener('click', () => pickOpt(idx, btn));
+        el.appendChild(btn);
+      });
+
+      // re-trigger animation
+      const inner = document.getElementById('q-inner');
+      inner.style.animation = 'none';
+      inner.offsetHeight;
+      inner.style.animation = 'fadeInUp .5s ease-out both';
+    }
+
+    function pickOpt(qIdx, btn) {
+      document.querySelectorAll('.opt').forEach(b => { b.disabled = true; b.classList.add('dim'); });
+      btn.classList.remove('dim');
+      btn.classList.add('selected');
+
+      const fb = document.getElementById('feedback');
+      fb.textContent = FEEDBACKS[Math.floor(Math.random() * FEEDBACKS.length)];
+      fb.classList.add('show');
+
+      setTimeout(() => {
+        fb.classList.remove('show');
+        const next = qIdx + 1;
+        if (next < TOTAL) {
+          renderQ(next);
+          window.scrollTo({top:0, behavior:'instant'});
+        } else {
+          document.getElementById('q-progress').style.width = '100%';
+          setTimeout(() => { showScreen('result'); initCarousel(); }, 300);
+        }
+      }, 800);
+    }
+
+    // ── CAROUSEL ──
+    function initCarousel() {
+      cIdx = 0;
+      const dotsEl = document.getElementById('c-dots');
+      dotsEl.innerHTML = '';
+      for (let i = 0; i < C_TOTAL; i++) {
+        const d = document.createElement('button');
+        d.className = 'c-dot' + (i === 0 ? ' active' : '');
+        d.setAttribute('aria-label', 'Slide ' + (i+1));
+        d.addEventListener('click', () => goSlide(i));
+        dotsEl.appendChild(d);
+      }
+      updateCarousel();
+      if (cTimer) clearInterval(cTimer);
+      cTimer = setInterval(() => { cIdx = (cIdx+1) % C_TOTAL; updateCarousel(); }, 4000);
+    }
+
+    function cPrev() { cIdx = (cIdx - 1 + C_TOTAL) % C_TOTAL; updateCarousel(); }
+    function cNext() { cIdx = (cIdx + 1) % C_TOTAL;            updateCarousel(); }
+    function goSlide(i) { cIdx = i; updateCarousel(); }
+
+    function updateCarousel() {
+      document.getElementById('c-track').style.transform = `translateX(-${cIdx * 100}%)`;
+      document.querySelectorAll('.c-dot').forEach((d,i) => d.classList.toggle('active', i === cIdx));
+    }
+
+    // ── SCROLL TO PRICING ──
+    function scrollPricing(e) {
+      e.preventDefault();
+      document.getElementById('pricing').scrollIntoView({behavior:'smooth'});
+    }
+  </script>
+</body>
+</html>

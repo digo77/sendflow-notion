@@ -294,3 +294,25 @@ export async function agendarMensagemImagem({ releaseId, accountId, imageUrl, ca
   );
   return { status: res.status, data: res.data };
 }
+
+/**
+ * Agenda uma mensagem com vídeo para uma campanha.
+ * POST https://sendflow.pro/sendapi/actions/send-video-message
+ */
+export async function agendarMensagemVideo({ releaseId, accountId, videoUrl, caption, scheduledTo, shippingSpeed = 'none' }) {
+  const res = await axios.post(
+    `${PRO_API}/sendapi/actions/send-video-message`,
+    {
+      accountId: accountId || ACCOUNT(),
+      releaseId,
+      url: videoUrl,
+      caption: caption || '',
+      scheduled: true,
+      scheduledTo,
+      chooseSpecificGroups: false,
+      options: { shippingSpeed },
+    },
+    { headers: headers(), timeout: 30000 }
+  );
+  return { status: res.status, data: res.data };
+}

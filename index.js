@@ -29,7 +29,7 @@ import {
   iniciarCronsWebinario,
 } from './webinario.js';
 import { wzPreview, agendarSequenciaWZ, getSequencia } from './wz-sequencia.js';
-import { sincronizarComNotion, lerCache, salvarConfigUrl, lerConfigUrl, lerConfig, salvarConfig } from './wz-notion.js';
+import { sincronizarComNotion, lerCache, salvarCache, salvarConfigUrl, lerConfigUrl, lerConfig, salvarConfig, listarCampanhasConfig, removerConfigCampanha, limparCache } from './wz-notion.js';
 import { aplicarVariaveis, formatarDataBR } from './wz-variaveis.js';
 import { validarSequencia } from './wz-validar.js';
 import { listarHistorico } from './wz-historico.js';
@@ -143,6 +143,8 @@ app.get('/api/agendamentos', async (_req, res) => {
 app.get('/api/campanhas', async (_req, res) => {
   try {
     const data = await buscarCampanhas();
+    // Mais recente primeiro (por createdTime do Notion)
+    data.sort((a, b) => (b.createdTime || '').localeCompare(a.createdTime || ''));
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -421,12 +423,20 @@ app.get('/api/logs', async (_req, res) => {
 
 // Retorna preview do agendamento sem executar
 app.get('/api/wz/preview', async (req, res) => {
-  const { dataWebinario } = req.query;
-  if (!dataWebinario || !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
-    return res.status(400).json({ error: 'dataWebinario obrigatório no formato YYYY-MM-DD' });
+  const dataWebinario = req.query.dataWebinario || req.query.dataReferencia || null;
+  const { releaseId } = req.query;
+  // Modo livre (mensagens com `absoluto`) não precisa de data. Só valida formato quando fornecida.
+  if (dataWebinario && !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
+    return res.status(400).json({ error: 'dataReferencia deve estar no formato YYYY-MM-DD' });
   }
   try {
-    const items = await wzPreview(dataWebinario);
+    // Se não passou data, checa se a sequência é 100% absoluta (modo livre)
+    if (!dataWebinario) {
+      const seq = await getSequencia(releaseId);
+      const precisaData = seq.some((w) => !w.absoluto);
+      if (precisaData) return res.status(400).json({ error: 'dataReferencia obrigatório — há mensagens sem data absoluta no Notion' });
+    }
+    const items = await wzPreview(dataWebinario, releaseId);
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -434,9 +444,9 @@ app.get('/api/wz/preview', async (req, res) => {
 });
 
 // Retorna a lista de mensagens WZ (sem agendar)
-app.get('/api/wz/mensagens', async (_req, res) => {
+app.get('/api/wz/mensagens', async (req, res) => {
   try {
-    const seq = await getSequencia();
+    const seq = await getSequencia(req.query.releaseId);
     res.json(seq.map(({ id, label, tipo, tipoAcao, prefixo, offset, hora, min, dia }) => ({
       id, label, tipo, tipoAcao: tipoAcao || 'enviar_mensagem', prefixo: prefixo || 'WZ', offset, hora, min, dia,
     })));
@@ -448,19 +458,38 @@ app.get('/api/wz/mensagens', async (_req, res) => {
 // Cria uma nova campanha (release) no Sendflow pra próxima semana de webinário
 app.post('/api/wz/nova-campanha', async (req, res) => {
   try {
-    const { dataWebinario, nomeOverride, descricaoInicial, fotoUrl, accountId } = req.body || {};
-    if (!dataWebinario || !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
-      return res.status(400).json({ error: 'dataWebinario obrigatório (YYYY-MM-DD)' });
+    const { dataWebinario, dataReferencia, nomeOverride, descricaoInicial, fotoUrl, accountId, releaseId: releaseIdExistente } = req.body || {};
+    const dataRef = dataReferencia || dataWebinario || null;
+
+    // ── Vincular campanha já existente no Sendflow ──
+    if (releaseIdExistente) {
+      const cfg = await lerConfig();
+      const patch = {};
+      if (dataRef) patch.dataWebinario = dataRef;
+      if (cfg.notionUrl) patch.notionUrl = cfg.notionUrl;
+      if (cfg.nomeBase) patch.nomeBase = cfg.nomeBase;
+      if (cfg.linkInscricao) patch.linkInscricao = cfg.linkInscricao;
+      if (cfg.horaWebinario !== undefined) patch.horaWebinario = cfg.horaWebinario;
+      await salvarConfig(patch, releaseIdExistente);
+      try { const sf = await listarCampanhasSendflow(); await sincronizarCampanhas(sf.data); } catch {}
+      console.log(`[Nova Campanha] ✅ vinculada: ${releaseIdExistente}`);
+      return res.json({ ok: true, releaseId: releaseIdExistente, vinculado: true });
     }
 
-    // Nome default: "{nome_base} • Aula DD.MM às HHh"
+    // ── Criar novo release no Sendflow ──
     const cfg = await lerConfig();
-    const [, isoMes, isoDia] = dataWebinario.split('-');
-    const hora = String(cfg.horaWebinario ?? 20).padStart(2, '0');
     const nomeBase = cfg.nomeBase || 'Campanha';
-    const nome = nomeOverride || `${nomeBase} • Aula ${isoDia}.${isoMes} às ${hora}h`;
+    let nome;
+    if (nomeOverride) {
+      nome = nomeOverride;
+    } else if (dataRef && /^\d{4}-\d{2}-\d{2}$/.test(dataRef)) {
+      const [, isoMes, isoDia] = dataRef.split('-');
+      const hora = String(cfg.horaWebinario ?? 20).padStart(2, '0');
+      nome = `${nomeBase} • ${isoDia}/${isoMes} às ${hora}h`;
+    } else {
+      nome = nomeBase;
+    }
 
-    // Cria release + grupo no Sendflow
     const r = await criarGrupoWebinario({
       accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
       nome,
@@ -468,13 +497,20 @@ app.post('/api/wz/nova-campanha', async (req, res) => {
       fotoUrl: fotoUrl || null,
     });
 
-    // Re-sincroniza campanhas no Notion pra refletir a nova
     try {
       const sf = await listarCampanhasSendflow();
       await sincronizarCampanhas(sf.data);
     } catch (err) {
       console.error('[Nova Campanha] erro ao sincronizar Notion:', err.message);
     }
+
+    const patch = {};
+    if (dataRef) patch.dataWebinario = dataRef;
+    if (cfg.notionUrl) patch.notionUrl = cfg.notionUrl;
+    if (cfg.nomeBase) patch.nomeBase = cfg.nomeBase;
+    if (cfg.linkInscricao) patch.linkInscricao = cfg.linkInscricao;
+    if (cfg.horaWebinario !== undefined) patch.horaWebinario = cfg.horaWebinario;
+    await salvarConfig(patch, r.data.id);
 
     console.log(`[Nova Campanha] ✅ ${nome} (${r.data.id})`);
     res.json({
@@ -491,15 +527,20 @@ app.post('/api/wz/nova-campanha', async (req, res) => {
 });
 
 // Estado atual da sincronização com Notion (cache + URL salva)
-app.get('/api/wz/sync-status', async (_req, res) => {
+// Se releaseId é passado, retorna config/cache específico daquela campanha
+// (merged com defaults). Sem releaseId, retorna os defaults.
+app.get('/api/wz/sync-status', async (req, res) => {
   try {
-    const cache = await lerCache();
-    const cfg = await lerConfig();
+    const releaseId = req.query.releaseId || null;
+    const cache = await lerCache(releaseId);
+    const cfg = await lerConfig(releaseId);
     res.json({
+      releaseId,
       notionUrl: cfg.notionUrl || null,
       nomeBase: cfg.nomeBase || '',
       linkInscricao: cfg.linkInscricao || '',
       horaWebinario: cfg.horaWebinario || 20,
+      dataWebinario: cfg.dataWebinario || null,
       syncedAt: cache?.syncedAt || null,
       totalMensagens: cache?.mensagens?.length || 0,
       sourceUrl: cache?.sourceUrl || null,
@@ -509,27 +550,209 @@ app.get('/api/wz/sync-status', async (_req, res) => {
   }
 });
 
-// Salva config das variáveis (nome_base, link_inscricao, hora_webinario)
-app.post('/api/wz/config', async (req, res) => {
+// Lista todas as campanhas que têm config salva (pra UI de cards)
+app.get('/api/wz/campanhas', async (_req, res) => {
   try {
-    const patch = {};
-    const { nomeBase, linkInscricao, horaWebinario, notionUrl } = req.body || {};
-    if (nomeBase !== undefined) patch.nomeBase = nomeBase;
-    if (linkInscricao !== undefined) patch.linkInscricao = linkInscricao;
-    if (horaWebinario !== undefined) patch.horaWebinario = Number(horaWebinario);
-    if (notionUrl !== undefined) patch.notionUrl = notionUrl;
-    const novo = await salvarConfig(patch);
-    res.json({ ok: true, config: novo });
+    const lista = await listarCampanhasConfig();
+    // Busca nomes no Sendflow (melhor esforço — se falhar, devolve sem nome)
+    let nomePorId = {};
+    try {
+      const sf = await listarCampanhasSendflow();
+      const releases = Array.isArray(sf.data) ? sf.data : (sf.data?.data || sf.data?.releases || []);
+      for (const r of releases) {
+        if (r?.id && r?.name) nomePorId[r.id] = r.name;
+      }
+    } catch (e) {
+      console.warn('[WZ-Campanhas] Sendflow list falhou:', e.message);
+    }
+    const resposta = lista.map((c) => {
+      const msgs = c.cache?.mensagens || [];
+      const modoLivre = msgs.length > 0 && msgs.every((m) => !!m.absoluto);
+      return {
+        releaseId: c.releaseId,
+        nome: nomePorId[c.releaseId] || null,
+        notionUrl: c.notionUrl || null,
+        notionUrls: c.notionUrls || (c.notionUrl ? [c.notionUrl] : []),
+        nomeBase: c.nomeBase || '',
+        linkInscricao: c.linkInscricao || '',
+        horaWebinario: c.horaWebinario ?? null,
+        horaEvento: c.horaEvento ?? c.horaWebinario ?? null,
+        dataReferencia: c.dataReferencia || c.dataWebinario || null,
+        dataWebinario: c.dataWebinario || null,
+        syncedAt: c.cache?.syncedAt || null,
+        totalMensagens: msgs.length,
+        modoLivre,
+      };
+    });
+    // Mais recente primeiro — syncedAt se tiver, senão fica no fim
+    resposta.sort((a, b) => (b.syncedAt || '').localeCompare(a.syncedAt || ''));
+    res.json(resposta);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Lista agendamentos locais (RN e DS), opcionalmente filtra por status
+// Remove a config de uma campanha (reset). Não mexe nos agendados já criados.
+app.delete('/api/wz/campanhas/:releaseId', async (req, res) => {
+  try {
+    await removerConfigCampanha(req.params.releaseId);
+    await limparCache(req.params.releaseId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Atualiza UMA mensagem no cache: hora/min/absoluto, texto, imagem.
+app.patch('/api/wz/mensagem', async (req, res) => {
+  try {
+    const { releaseId, id, hora, min, absoluto, mensagem, imageUrl, label } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    const cache = await lerCache(releaseId);
+    if (!cache?.mensagens) return res.status(404).json({ error: 'Cache não encontrado pra campanha' });
+    const msg = cache.mensagens.find((m) => m.id === id);
+    if (!msg) return res.status(404).json({ error: `Mensagem ${id} não encontrada` });
+
+    if (absoluto) {
+      let iso;
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(absoluto)) {
+        const [datePart, timePart] = absoluto.split('T');
+        const [y, m, d] = datePart.split('-').map(Number);
+        const [hh, mi] = timePart.split(':').map(Number);
+        iso = new Date(Date.UTC(y, m - 1, d, hh + 3, mi)).toISOString();
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(absoluto)) {
+        const prev = msg.absoluto ? new Date(msg.absoluto) : new Date();
+        const h = hora != null ? Number(hora) : prev.getUTCHours() - 3;
+        const mm = min != null ? Number(min) : prev.getUTCMinutes();
+        const [y, m, d] = absoluto.split('-').map(Number);
+        iso = new Date(Date.UTC(y, m - 1, d, h + 3, mm)).toISOString();
+      } else {
+        return res.status(400).json({ error: 'Formato de `absoluto` inválido (use YYYY-MM-DDTHH:MM)' });
+      }
+      msg.absoluto = iso;
+      const local = new Date(iso);
+      msg.hora = local.getUTCHours() - 3;
+      if (msg.hora < 0) msg.hora += 24;
+      msg.min = local.getUTCMinutes();
+    } else {
+      if (hora != null) msg.hora = Number(hora);
+      if (min != null) msg.min = Number(min);
+    }
+
+    if (mensagem !== undefined) msg.mensagem = String(mensagem);
+    if (imageUrl !== undefined) {
+      msg.imageUrl = imageUrl || null;
+      msg.tipo = imageUrl ? 'imagem' : 'texto';
+    }
+    if (label !== undefined) msg.label = String(label);
+
+    await salvarCache(cache.mensagens, cache.sourceUrls || cache.sourceUrl, releaseId);
+    res.json({ ok: true, mensagem: msg });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cria uma ação manual (RN, DS, WZ ou LV) direto no cache — não precisa do Notion.
+// Campos: releaseId, tipoAcao (enviar_mensagem|renomear_grupo|atualizar_descricao),
+// absoluto (YYYY-MM-DDTHH:MM em Brasília), mensagem, imageUrl, label.
+app.post('/api/wz/mensagem', async (req, res) => {
+  try {
+    const { releaseId, tipoAcao = 'enviar_mensagem', absoluto, mensagem = '', imageUrl = null, label = '' } = req.body || {};
+    if (!absoluto || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(absoluto)) {
+      return res.status(400).json({ error: 'absoluto obrigatório no formato YYYY-MM-DDTHH:MM (Brasília)' });
+    }
+    const cache = (await lerCache(releaseId)) || { mensagens: [], sourceUrls: [], sourceUrl: null };
+    const mensagens = cache.mensagens || [];
+
+    // Converte Brasília → UTC
+    const [datePart, timePart] = absoluto.split('T');
+    const [y, mo, d] = datePart.split('-').map(Number);
+    const [hh, mi] = timePart.split(':').map(Number);
+    const iso = new Date(Date.UTC(y, mo - 1, d, hh + 3, mi)).toISOString();
+
+    // Prefixo e id — numera sequencialmente dentro do prefixo
+    const prefixo =
+      tipoAcao === 'renomear_grupo' ? 'RN' :
+      tipoAcao === 'atualizar_descricao' ? 'DS' : 'LV';
+    const prefixados = mensagens.filter((m) => (m.prefixo || '') === prefixo);
+    const nums = prefixados.map((m) => parseInt(String(m.id).replace(prefixo, ''), 10)).filter(Number.isFinite);
+    const nextNum = (nums.length ? Math.max(...nums) : 0) + 1;
+    const id = `${prefixo}${nextNum}`;
+
+    const novo = {
+      id,
+      prefixo,
+      tipoAcao,
+      dia: '',
+      offset: null,
+      absoluto: iso,
+      label: label || (tipoAcao === 'renomear_grupo' ? 'Renomear grupo' : tipoAcao === 'atualizar_descricao' ? 'Atualizar descrição' : 'Mensagem manual'),
+      tipo: imageUrl ? 'imagem' : 'texto',
+      mensagem: String(mensagem),
+      imageUrl: imageUrl || null,
+      hora: hh,
+      min: mi,
+      origem: 'manual',
+    };
+    mensagens.push(novo);
+    // Mantém a ordem cronológica
+    mensagens.sort((a, b) => {
+      const ta = a.absoluto ? new Date(a.absoluto).getTime() : 0;
+      const tb = b.absoluto ? new Date(b.absoluto).getTime() : 0;
+      return ta - tb;
+    });
+
+    await salvarCache(mensagens, cache.sourceUrls || cache.sourceUrl || [], releaseId);
+    res.json({ ok: true, mensagem: novo });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove uma mensagem do cache (qualquer origem).
+app.delete('/api/wz/mensagem', async (req, res) => {
+  try {
+    const { releaseId, id } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+    const cache = await lerCache(releaseId);
+    if (!cache?.mensagens) return res.status(404).json({ error: 'Cache não encontrado' });
+    const antes = cache.mensagens.length;
+    const filtradas = cache.mensagens.filter((m) => m.id !== id);
+    if (filtradas.length === antes) return res.status(404).json({ error: `Mensagem ${id} não encontrada` });
+    await salvarCache(filtradas, cache.sourceUrls || cache.sourceUrl || [], releaseId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Salva config das variáveis (nome_base, link_inscricao, hora_webinario, notionUrl,
+// dataWebinario). Se releaseId for passado no body, salva só pra essa campanha.
+app.post('/api/wz/config', async (req, res) => {
+  try {
+    const patch = {};
+    const { nomeBase, linkInscricao, horaWebinario, horaEvento, notionUrl, dataWebinario, dataReferencia, releaseId } = req.body || {};
+    if (nomeBase !== undefined) patch.nomeBase = nomeBase;
+    if (linkInscricao !== undefined) patch.linkInscricao = linkInscricao;
+    const hora = horaEvento ?? horaWebinario;
+    if (hora !== undefined && hora !== '') patch.horaEvento = Number(hora);
+    if (notionUrl !== undefined) patch.notionUrl = notionUrl;
+    const dataRef = dataReferencia ?? dataWebinario;
+    if (dataRef !== undefined) patch.dataWebinario = dataRef;
+    const novo = await salvarConfig(patch, releaseId || undefined);
+    res.json({ ok: true, config: novo, releaseId: releaseId || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lista agendamentos locais (RN e DS), opcionalmente filtra por status/releaseId
 app.get('/api/wz/agendados', async (req, res) => {
   try {
-    const { status } = req.query;
-    const lista = await listarAgendados({ status });
+    const { status, releaseId } = req.query;
+    let lista = await listarAgendados({ status });
+    if (releaseId) lista = lista.filter((e) => e.releaseId === releaseId);
     res.json(lista);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -576,13 +799,13 @@ app.post('/api/wz/agendados/:id/executar', async (req, res) => {
 // sem agendamento — pra validar texto, imagens e formatação antes de
 // disparar em massa pra campanha.
 app.post('/api/wz/testar', async (req, res) => {
-  const { numero, wzId, accountId } = req.body || {};
+  const { numero, wzId, accountId, releaseId } = req.body || {};
   if (!numero) return res.status(400).json({ error: 'numero obrigatório (ex: 5511999999999)' });
   const numeroLimpo = String(numero).replace(/\D/g, '');
   if (numeroLimpo.length < 10) return res.status(400).json({ error: 'numero inválido' });
 
   try {
-    const seq = await getSequencia();
+    const seq = await getSequencia(releaseId);
     if (!seq.length) return res.status(400).json({ error: 'Sequência vazia. Sincronize com o Notion.' });
 
     const alvo = wzId ? seq.filter((m) => m.id === wzId) : seq;
@@ -615,33 +838,55 @@ app.post('/api/wz/testar', async (req, res) => {
 });
 
 // Sincroniza a sequência WZ lendo a página do Notion
+// Se releaseId for passado, grava cache/URL na campanha; senão no default.
 app.post('/api/wz/sync-notion', async (req, res) => {
-  const { notionUrl } = req.body || {};
-  const url = notionUrl || (await lerConfigUrl());
-  if (!url) return res.status(400).json({ error: 'notionUrl obrigatório (ou salve um padrão antes)' });
+  const { notionUrl, notionUrls, releaseId } = req.body || {};
+  // Normaliza pra array. Aceita: notionUrls: [] ou notionUrl: string
+  let urls = Array.isArray(notionUrls) ? notionUrls.filter(Boolean) : [];
+  if (!urls.length && notionUrl) urls = [notionUrl];
+  if (!urls.length) {
+    // Fallback: lê config salva (pode ser array ou string)
+    const cfg = await lerConfig(releaseId);
+    if (Array.isArray(cfg.notionUrls) && cfg.notionUrls.length) urls = cfg.notionUrls.filter(Boolean);
+    else if (cfg.notionUrl) urls = [cfg.notionUrl];
+  }
+  if (!urls.length) return res.status(400).json({ error: 'notionUrl(s) obrigatório(s) (ou salve um padrão antes)' });
   try {
-    const cache = await sincronizarComNotion(url);
-    await salvarConfigUrl(url);
-    console.log(`[WZ-Sync] ${cache.mensagens.length} mensagens sincronizadas do Notion`);
+    const cache = await sincronizarComNotion(urls, releaseId);
+    // Salva lista de URLs na config (+ mantém notionUrl como back-compat = primeira)
+    await salvarConfig({ notionUrls: urls, notionUrl: urls[0] }, releaseId);
+    const ignorados = cache.ignorados || [];
+    console.log(`[WZ-Sync] ${cache.mensagens.length} mensagens sincronizadas de ${urls.length} Notion(s)${releaseId ? ` (campanha ${releaseId})` : ''}${ignorados.length ? ` · ${ignorados.length} cabeçalhos ignorados` : ''}`);
     res.json({
       ok: true,
+      releaseId: releaseId || null,
       syncedAt: cache.syncedAt,
       totalMensagens: cache.mensagens.length,
-      notionUrl: url,
-      mensagens: cache.mensagens.map(({ id, label, tipo, dia, hora, min, offset, imageUrl }) => ({
-        id, label, tipo, dia, hora, min, offset, imageUrl,
+      notionUrl: urls[0],
+      notionUrls: urls,
+      ignorados,
+      mensagens: cache.mensagens.map(({ id, prefixo, label, tipo, dia, hora, min, offset, imageUrl, absoluto }) => ({
+        id, prefixo, label, tipo, dia, hora, min, offset, imageUrl, absoluto,
       })),
     });
   } catch (err) {
     console.error('[WZ-Sync] Erro:', err.message);
-    res.status(500).json({ error: err.message });
+    const status = err.code === 'notion_not_shared' ? 403
+      : err.code === 'notion_unauthorized' ? 401
+      : err.code === 'notion_invalid_url' ? 400
+      : err.code === 'notion_rate_limit' ? 429
+      : 500;
+    res.status(status).json({ error: err.message, code: err.code || null });
   }
 });
 
-// Histórico das sequências já agendadas
-app.get('/api/wz/historico', async (_req, res) => {
+// Histórico das sequências já agendadas (aceita filtro por releaseId)
+app.get('/api/wz/historico', async (req, res) => {
   try {
-    res.json(await listarHistorico(20));
+    const { releaseId } = req.query;
+    let h = await listarHistorico(100);
+    if (releaseId) h = h.filter((e) => e.releaseId === releaseId);
+    res.json(h.slice(0, 20));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -649,10 +894,11 @@ app.get('/api/wz/historico', async (_req, res) => {
 
 // Valida a sequência sem agendar (usado pelo dashboard antes de apertar "Agendar")
 app.get('/api/wz/validar', async (req, res) => {
-  const { dataWebinario } = req.query;
-  if (!dataWebinario) return res.status(400).json({ error: 'dataWebinario obrigatório' });
+  const dataWebinario = req.query.dataWebinario || req.query.dataReferencia;
+  const { releaseId } = req.query;
+  if (!dataWebinario) return res.status(400).json({ error: 'dataReferencia obrigatório' });
   try {
-    const seq = await getSequencia();
+    const seq = await getSequencia(releaseId);
     const r = await validarSequencia({ mensagens: seq, dataWebinario });
     res.json(r);
   } catch (err) {
@@ -666,86 +912,82 @@ app.get('/api/wz/validar', async (req, res) => {
 //
 // Body: { releaseId, accountId, dataWebinario, fases: ['WZ','RN','DS','IN'], ignorarValidacao? }
 app.post('/api/wz/agendar', async (req, res) => {
-  const { releaseId, accountId, dataWebinario, fases, ignorarValidacao } = req.body;
-  if (!releaseId || !dataWebinario) {
-    return res.status(400).json({ error: 'releaseId e dataWebinario são obrigatórios' });
+  const { releaseId, accountId, fases, ids, ignorarValidacao } = req.body;
+  const dataWebinario = req.body.dataWebinario || req.body.dataReferencia || null;
+  if (!releaseId) {
+    return res.status(400).json({ error: 'releaseId é obrigatório' });
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
-    return res.status(400).json({ error: 'dataWebinario deve estar no formato YYYY-MM-DD' });
+  if (dataWebinario && !/^\d{4}-\d{2}-\d{2}$/.test(dataWebinario)) {
+    return res.status(400).json({ error: 'dataReferencia deve estar no formato YYYY-MM-DD' });
   }
-  const fasesAlvo = fases?.length ? fases : ['WZ', 'RN', 'DS', 'IN'];
+  // Modo livre: se não há dataWebinario, todas as mensagens alvo precisam ter `absoluto`
+  if (!dataWebinario) {
+    const seqCheck = await getSequencia(releaseId);
+    const fasesCheck = fases?.length ? fases : null;
+    const idsCheck = ids?.length ? ids : null;
+    const alvo = seqCheck.filter((w) => {
+      if (fasesCheck && !fasesCheck.includes(w.prefixo)) return false;
+      if (idsCheck && !idsCheck.includes(w.id)) return false;
+      return true;
+    });
+    const precisaData = alvo.some((w) => !w.absoluto);
+    if (precisaData) return res.status(400).json({ error: 'dataReferencia obrigatório — há mensagens sem data absoluta' });
+  }
+  const fasesAlvo = fases?.length ? fases : ['WZ', 'RN', 'DS', 'DC', 'IN', 'LV'];
   try {
-    // 1. Validação pré-agendamento (só bloqueante se tiver fases de mensagem)
-    const seq = await getSequencia();
-    const validacao = await validarSequencia({ mensagens: seq, dataWebinario });
-    if (!validacao.ok && !ignorarValidacao) {
-      return res.status(400).json({
-        error: 'Validação falhou. Corrija os erros ou re-envie com ignorarValidacao=true.',
-        validacao,
-      });
-    }
-
-    // 2. Divide por tipo de execução
-    const fasesMensagens = fasesAlvo.filter((f) => ['WZ', 'IN'].includes(f));
-    const fasesLocais = fasesAlvo.filter((f) => ['RN', 'DS'].includes(f));
-
-    const resultadosMensagens = [];
-    const resultadosLocais = [];
-
-    // 2a. Mensagens (WZ/IN) via Sendflow
-    if (fasesMensagens.length) {
-      const r = await agendarSequenciaWZ({
-        releaseId,
-        accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
-        dataWebinario,
-        fases: fasesMensagens,
-      });
-      resultadosMensagens.push(...r);
-    }
-
-    // 2b. Renames e Descrições via agendador local
-    let puladosPassado = [];
-    if (fasesLocais.length) {
-      const cfg = await lerConfig();
-      const vars = {
-        data: formatarDataBR(dataWebinario),
-        hora: cfg.horaWebinario ?? 20,
-        nome_base: cfg.nomeBase || '',
-        link_inscricao: cfg.linkInscricao || '',
-      };
-      const agora = Date.now();
-      const todas = seq
-        .filter((w) => fasesLocais.includes(w.prefixo))
-        .map((w) => {
-          const [y, m, d] = dataWebinario.split('-').map(Number);
-          const at = new Date(Date.UTC(y, m - 1, d + w.offset, (w.hora ?? 0) + 3, w.min ?? 0)).toISOString();
-          return {
-            id: w.id,
-            prefixo: w.prefixo,
-            tipoAcao: w.tipoAcao,
-            scheduledTo: at,
-            releaseId,
-            accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
-            mensagem: aplicarVariaveis(w.mensagem, vars),
-            label: w.label,
-          };
+    // 1. Validação pré-agendamento — só quando há dataWebinario (modo webinar).
+    // No modo livre (LV) as datas vêm do Notion, validação não se aplica.
+    const seq = await getSequencia(releaseId);
+    let validacao = { ok: true, erros: [], avisos: [] };
+    if (dataWebinario) {
+      validacao = await validarSequencia({ mensagens: seq.filter((w) => w.prefixo !== 'LV'), dataWebinario });
+      if (!validacao.ok && !ignorarValidacao) {
+        return res.status(400).json({
+          error: 'Validação falhou. Corrija os erros ou re-envie com ignorarValidacao=true.',
+          validacao,
         });
-
-      // Separa ações cujo horário já passou (não agendar, só reportar)
-      const acoes = todas.filter((a) => new Date(a.scheduledTo).getTime() > agora);
-      puladosPassado = todas.filter((a) => new Date(a.scheduledTo).getTime() <= agora)
-        .map((a) => ({ id: a.id, label: a.label, scheduledTo: a.scheduledTo }));
-
-      if (acoes.length) {
-        const r = await agendarAcoes(acoes);
-        resultadosLocais.push(...r);
       }
     }
 
-    const totalResultados = [...resultadosMensagens, ...resultadosLocais];
+    // 2. Agendamento unificado — tudo via Sendflow nativo (WZ/IN/LV como mensagem,
+    // RN como PUT release group.name + scheduled, DS como group.fixedDescription + scheduled).
+    const r = await agendarSequenciaWZ({
+      releaseId,
+      accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+      dataWebinario,
+      fases: fasesAlvo,
+      ids,
+    });
+    const resultadosMensagens = r.filter((x) => x.tipoAcao === 'enviar_mensagem' || !x.tipoAcao);
+    const resultadosLocais = r.filter((x) => x.tipoAcao === 'renomear_grupo' || x.tipoAcao === 'atualizar_descricao');
+    const puladosPassado = r.filter((x) => x.pulado).map((x) => ({ id: x.id, scheduledTo: x.scheduledTo }));
+
+    const totalResultados = r;
     const ok = totalResultados.filter((r) => r.ok).length;
     const falhas = totalResultados.filter((r) => !r.ok).length;
     console.log(`[WZ] ${ok} agendadas, ${falhas} falhas | fases ${fasesAlvo.join(',')} | campanha ${releaseId} | webinário ${dataWebinario}`);
+    if (falhas) {
+      for (const f of totalResultados.filter((x) => !x.ok && !x.pulado)) {
+        console.log(`  ✗ ${f.id} (${f.prefixo}/${f.tipoAcao || 'enviar_mensagem'}): ${f.erro || '(sem motivo)'}`);
+      }
+    }
+
+    // Salva WZ/IN/LV no cache local para que o status "agendado" seja visível na UI
+    const wzOk = resultadosMensagens.filter((x) => x.ok && x.scheduledTo);
+    if (wzOk.length) {
+      try {
+        await agendarAcoes(wzOk.map((x) => ({
+          id: x.id,
+          prefixo: x.prefixo || 'WZ',
+          tipoAcao: 'enviar_mensagem',
+          scheduledTo: x.scheduledTo,
+          releaseId,
+          accountId: accountId || process.env.SENDFLOW_ACCOUNT_ID,
+          mensagem: '',
+          label: x.label || '',
+        })));
+      } catch {}
+    }
 
     // 3. Registra no histórico
     try {
@@ -809,6 +1051,10 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Dashboard HTML ───
+app.get('/agendamento', (_req, res) => {
+  res.sendFile(join(__dirname, 'agendamento.html'));
+});
+
 app.get('/', (_req, res) => {
   res.sendFile(join(__dirname, 'dashboard.html'));
 });
