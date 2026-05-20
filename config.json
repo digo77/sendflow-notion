@@ -17,6 +17,22 @@
       "auto_agendar_wz": false
     },
     {
+      "id": "webinario-1776564037860",
+      "ativo": true,
+      "auto_agendar_wz": false,
+      "nome_cliente": "Chef Aureo - Cookie Limão",
+      "nome_base": "🍋 Aulão Cookie Limão",
+      "numero_admin": "5511974561100",
+      "dia_semana": 2,
+      "hora_webinario": "20:00",
+      "hora_corte": "16:00",
+      "switchy_link_id": "webinar-limao",
+      "switchy_domain": "link.chefaureomagalhaes.com",
+      "descricao_grupo": "*Aula de Cookie de Limão Siciliano* 🍋\n\nTerça *às 20h*",
+      "foto_grupo_url": "https://chefaureomagalhaes.com/wp-content/uploads/2026/05/chef-limao.jpg",
+      "mensagem_wpp": "✅ Grupo criado!\n*{nome_grupo}*\n📅 {data_webinario}\n🔗 {link_grupo}"
+    },
+    {
       "ativo": true,
       "auto_agendar_wz": false,
       "nome_cliente": "Rodrigo",
