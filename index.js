@@ -15,7 +15,7 @@ import {
   listarWebinarios,
   marcarPushSendflow,
 } from './notion.js';
-import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease, criarGrupoWebinario } from './sendflow.js';
+import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease, criarGrupoWebinario, obterCampanha } from './sendflow.js';
 import { runBackup } from './backup.js';
 import {
   lerWebinarios,
@@ -314,6 +314,15 @@ app.post('/api/sync-campanhas', async (_req, res) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error('[Sync] Erro:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/sendflow/release/:id', async (req, res) => {
+  try {
+    const r = await obterCampanha(req.params.id);
+    res.status(r.status).json(r.data);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
