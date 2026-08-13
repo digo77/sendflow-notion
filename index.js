@@ -749,8 +749,13 @@ app.get('/api/wz/campanhas', async (_req, res) => {
         modoLivre,
       };
     });
-    // Mais recente primeiro — syncedAt se tiver, senão fica no fim
-    resposta.sort((a, b) => (b.syncedAt || '').localeCompare(a.syncedAt || ''));
+    // Mais recente primeiro — por data real da campanha; sem data fica no fim (desempate por syncedAt)
+    resposta.sort((a, b) => {
+      const da = a.dataReferencia || a.dataWebinario || '';
+      const db = b.dataReferencia || b.dataWebinario || '';
+      if (da !== db) return db.localeCompare(da);
+      return (b.syncedAt || '').localeCompare(a.syncedAt || '');
+    });
     res.json(resposta);
   } catch (err) {
     res.status(500).json({ error: err.message });
