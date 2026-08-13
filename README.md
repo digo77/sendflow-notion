@@ -60,7 +60,11 @@ Auth: `Authorization: Bearer <SENDFLOW_API_TOKEN>`
 | GET | `/sendapi/releases` | Listar campanhas |
 | POST | `/sendapi/send-text-message/{accountId}` | Enviar mensagem direta (confirmação) |
 | POST | `/sendapi/actions/send-text-message` | Enviar mensagem para grupos da campanha |
+| POST | `/sendapi/actions/send-image-message` | Enviar imagem para grupos da campanha |
+| POST | `/sendapi/actions/send-video-message` | Enviar vídeo para grupos da campanha |
 | PUT | `/sendapi/release-groups/{releaseGroupId}` | Renomear grupo |
+
+Quando um agendamento do tipo `enviar_mensagem` tem o campo **Mídia (URL)** preenchido no Notion, a mídia (imagem ou vídeo, detectado pela extensão) é enviada primeiro, sem legenda, e o texto do **Parâmetro** vai como mensagem separada logo em seguida.
 
 ## 5. Configuração do n8n (workflow de sync de campanhas)
 

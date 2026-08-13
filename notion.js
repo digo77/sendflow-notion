@@ -127,7 +127,7 @@ export async function marcarPushSendflow(campanhaPageId) {
 /**
  * Cria um novo agendamento no Notion.
  */
-export async function criarAgendamento({ nome, dataHora, tipoAcao, campanhaId, parametro }) {
+export async function criarAgendamento({ nome, dataHora, tipoAcao, campanhaId, parametro, midiaUrl }) {
   const properties = {
     Nome: { title: [{ text: { content: nome } }] },
     'Data/Hora': { date: { start: dataHora } },
@@ -136,6 +136,7 @@ export async function criarAgendamento({ nome, dataHora, tipoAcao, campanhaId, p
     'Parâmetro': { rich_text: [{ text: { content: parametro } }] },
     Status: { select: { name: 'pendente' } },
   };
+  if (midiaUrl) properties['Mídia (URL)'] = { url: midiaUrl };
   const page = await notion.pages.create({
     parent: { database_id: DB_AGENDAMENTOS },
     properties,
@@ -279,6 +280,7 @@ function parseAgendamento(page) {
     tipoAcao: p['Tipo de Ação']?.select?.name || '',
     campanhaRelation: p['Campanha']?.relation?.[0]?.id || null,
     parametro: p['Parâmetro']?.rich_text?.[0]?.plain_text || '',
+    midiaUrl: p['Mídia (URL)']?.url || null,
     status: p['Status']?.select?.name || '',
     resultado: p['Resultado']?.rich_text?.[0]?.plain_text || '',
   };

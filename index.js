@@ -153,11 +153,11 @@ app.get('/api/campanhas', async (_req, res) => {
 
 app.post('/api/agendamentos', async (req, res) => {
   try {
-    const { nome, dataHora, tipoAcao, campanhaId, parametro } = req.body;
+    const { nome, dataHora, tipoAcao, campanhaId, parametro, midiaUrl } = req.body;
     if (!nome || !dataHora || !tipoAcao || !campanhaId || !parametro) {
       return res.status(400).json({ error: 'Campos obrigatórios: nome, dataHora, tipoAcao, campanhaId, parametro' });
     }
-    const id = await criarAgendamento({ nome, dataHora, tipoAcao, campanhaId, parametro });
+    const id = await criarAgendamento({ nome, dataHora, tipoAcao, campanhaId, parametro, midiaUrl });
     res.json({ ok: true, id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -238,6 +238,7 @@ app.post('/api/aprovar-direto/:pageId', async (req, res) => {
       releaseId: campanha.idSendflow,
       accountId: campanha.instancia || process.env.SENDFLOW_ACCOUNT_ID,
       parametro: ag.parametro,
+      midiaUrl: ag.midiaUrl,
     };
 
     console.log(`[Dashboard] Aprovado direto: ${ag.nome}`);

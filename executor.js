@@ -4,7 +4,7 @@ import {
   atualizarAgendamento,
   resolverCampanha,
 } from './notion.js';
-import { renomearGrupo, enviarMensagem } from './sendflow.js';
+import { renomearGrupo, enviarMensagem, enviarImagem, enviarVideo, detectarTipoMidia } from './sendflow.js';
 import { pedirConfirmacao, limparExpirados } from './confirmacao.js';
 import { registrarLog } from './backup.js';
 
@@ -88,7 +88,7 @@ export async function ciclo() {
  * Executa a ação aprovada via Sendflow e atualiza o Notion.
  */
 export async function executarAcao(dados) {
-  const { pageId, tipoAcao, releaseId, accountId, parametro, nome } = dados;
+  const { pageId, tipoAcao, releaseId, accountId, parametro, midiaUrl, nome } = dados;
 
   try {
     let resultado;
@@ -96,7 +96,18 @@ export async function executarAcao(dados) {
     if (tipoAcao === 'renomear_grupo') {
       resultado = await renomearGrupo(releaseId, parametro);
     } else if (tipoAcao === 'enviar_mensagem') {
-      resultado = await enviarMensagem(releaseId, parametro, accountId);
+      if (midiaUrl) {
+        // Mídia e texto vão como 2 mensagens separadas: mídia sem legenda, depois o texto.
+        const tipoMidia = detectarTipoMidia(midiaUrl);
+        const resultadoMidia =
+          tipoMidia === 'video'
+            ? await enviarVideo(releaseId, midiaUrl, accountId)
+            : await enviarImagem(releaseId, midiaUrl, accountId);
+        const resultadoTexto = await enviarMensagem(releaseId, parametro, accountId);
+        resultado = { status: resultadoTexto.status, data: { midia: resultadoMidia.data, texto: resultadoTexto.data } };
+      } else {
+        resultado = await enviarMensagem(releaseId, parametro, accountId);
+      }
     } else {
       throw new Error(`Tipo de ação desconhecido: ${tipoAcao}`);
     }

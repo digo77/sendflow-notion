@@ -1130,6 +1130,10 @@ tr:hover td { background: var(--surface2); }
         <label>Parâmetro</label>
         <textarea id="ag-parametro" rows="3" required placeholder="Texto da mensagem ou novo nome do grupo"></textarea>
       </div>
+      <div class="form-group" id="grupo-midia" style="display:none">
+        <label>Mídia (URL) — opcional</label>
+        <input type="url" id="ag-midia" placeholder="Link de imagem ou vídeo. Enviada separada, antes do texto.">
+      </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-salvar">Criar agendamento</button>
@@ -1572,6 +1576,10 @@ function fecharModal() {
   document.getElementById('form-agendamento').reset();
 }
 
+document.getElementById('ag-tipo').addEventListener('change', function() {
+  document.getElementById('grupo-midia').style.display = this.value === 'enviar_mensagem' ? '' : 'none';
+});
+
 async function salvarAgendamento(e) {
   e.preventDefault();
   const btn = document.getElementById('btn-salvar');
@@ -1584,6 +1592,7 @@ async function salvarAgendamento(e) {
       tipoAcao: document.getElementById('ag-tipo').value,
       campanhaId: document.getElementById('ag-campanha').value,
       parametro: document.getElementById('ag-parametro').value,
+      midiaUrl: document.getElementById('ag-midia').value || undefined,
     };
     const res = await api('/api/agendamentos', { method: 'POST', body: JSON.stringify(body) });
     if (res.ok) {

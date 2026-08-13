@@ -39,6 +39,53 @@ export async function enviarMensagem(releaseId, mensagem, accountId) {
   return { status: res.status, data: res.data };
 }
 
+const EXTENSOES_VIDEO = ['.mp4', '.mov', '.webm', '.mkv', '.avi'];
+
+/**
+ * Detecta se uma URL de mídia é imagem ou vídeo pela extensão.
+ * Fallback: imagem.
+ */
+export function detectarTipoMidia(url) {
+  const semQuery = String(url).split('?')[0].toLowerCase();
+  return EXTENSOES_VIDEO.some((ext) => semQuery.endsWith(ext)) ? 'video' : 'imagem';
+}
+
+/**
+ * Envia imagem para todos os grupos de uma campanha (imediato, sem agendamento).
+ * POST /sendapi/actions/send-image-message
+ */
+export async function enviarImagem(releaseId, url, accountId, caption = '') {
+  const res = await axios.post(
+    `${API()}/sendapi/actions/send-image-message`,
+    {
+      accountId: accountId || ACCOUNT(),
+      releaseId,
+      url,
+      caption,
+    },
+    { headers: headers(), timeout: 20000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
+/**
+ * Envia vídeo para todos os grupos de uma campanha (imediato, sem agendamento).
+ * POST /sendapi/actions/send-video-message
+ */
+export async function enviarVideo(releaseId, url, accountId, caption = '') {
+  const res = await axios.post(
+    `${API()}/sendapi/actions/send-video-message`,
+    {
+      accountId: accountId || ACCOUNT(),
+      releaseId,
+      url,
+      caption,
+    },
+    { headers: headers(), timeout: 20000 }
+  );
+  return { status: res.status, data: res.data };
+}
+
 /**
  * Envia mensagem direta para um número via WhatsApp.
  * POST /sendapi/send-text-message/{accountId}

@@ -28,6 +28,7 @@ export async function pedirConfirmacao(agendamento, campanhaNome, releaseId, acc
     releaseId,
     accountId,
     parametro: agendamento.parametro,
+    midiaUrl: agendamento.midiaUrl || null,
     criadoEm: Date.now(),
   });
 
@@ -47,12 +48,13 @@ export async function pedirConfirmacao(agendamento, campanhaNome, releaseId, acc
     `*Campanha:* ${campanhaNome}`,
     `*Ação:* ${acaoLabel}`,
     `*Parâmetro:* ${agendamento.parametro}`,
+    agendamento.midiaUrl ? `*Mídia:* ${agendamento.midiaUrl} (enviada em mensagem separada, antes do texto)` : null,
     `*Horário:* ${hora}`,
     ``,
     `Responda:`,
     `✅ *SIM ${shortId}* para confirmar`,
     `❌ *NAO ${shortId}* para cancelar`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   await enviarMensagemDireta(process.env.SENDFLOW_NUMBER, texto);
 
