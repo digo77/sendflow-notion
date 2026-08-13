@@ -391,13 +391,27 @@ tr:hover td { background: var(--surface2); }
     <div class="icon">🎙️</div>
     <span>Webinário</span>
   </div>
+  <div class="nav-item" data-tab="everwebinar">
+    <div class="icon">🎬</div>
+    <span>EverWebinar</span>
+  </div>
   <div class="sidebar-footer">
     <div class="status-line">
       <div class="status-dot" id="status-dot"></div>
       <span id="status-text">Conectado</span>
     </div>
+    <button onclick="sairDashboard()" title="Sair"
+      style="margin-top:10px;width:100%;padding:8px;border:1px solid var(--border,#E7E5DF);border-radius:8px;background:transparent;color:var(--text2,#5E5C57);font:600 12px 'Inter',sans-serif;cursor:pointer">
+      ⎋ Sair
+    </button>
   </div>
 </nav>
+<script>
+  async function sairDashboard() {
+    try { await fetch('/api/logout', { method: 'POST' }); } catch {}
+    location.href = '/login';
+  }
+</script>
 
 <!-- Main -->
 <div class="main">
@@ -451,6 +465,30 @@ tr:hover td { background: var(--surface2); }
       <button class="btn btn-primary" onclick="executarCiclo()">▶ Executar ciclo agora</button>
       <button class="btn btn-secondary" onclick="executarBackup()">💾 Fazer backup</button>
       <button class="btn btn-secondary" onclick="recarregarTudo()">🔄 Atualizar dados</button>
+    </div>
+
+    <!-- Chave API Sendflow -->
+    <div class="table-wrap" style="margin-bottom:24px">
+      <div class="table-header">
+        <h3>🔑 Chave API Sendflow</h3>
+        <span id="sf-key-status" style="font-size:12px;color:var(--text2)"></span>
+      </div>
+      <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:13px;color:var(--text2)">
+          Chave ativa: <code id="sf-key-masked" style="font-size:12px;background:var(--surface2);padding:2px 6px;border-radius:4px">carregando…</code>
+          <span id="sf-key-override-badge" style="display:none;margin-left:8px;font-size:11px;font-weight:600;color:#065F46;background:rgba(16,185,129,.12);padding:2px 8px;border-radius:999px">override ativo</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:1">
+            <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:4px">Nova chave</label>
+            <input type="password" id="sf-key-input" placeholder="send_api_…"
+              style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font:13px 'DM Mono',monospace;background:var(--surface)">
+          </div>
+          <button class="btn btn-primary" onclick="salvarChaveSendflow()" style="white-space:nowrap">💾 Salvar chave</button>
+          <button class="btn btn-secondary" id="sf-key-reset-btn" onclick="resetarChaveSendflow()" style="white-space:nowrap;display:none" title="Remove override — volta a usar a chave do servidor (.env)">↩ Usar .env</button>
+        </div>
+        <div style="font-size:12px;color:var(--text2)">A chave é salva em <code>data/sendflow-key.json</code> (não vai pro git). Ao salvar, entra em vigor imediatamente — sem restart.</div>
+      </div>
     </div>
 
     <!-- Aprovações pendentes -->
@@ -621,6 +659,145 @@ tr:hover td { background: var(--surface2); }
         </div>
         <div id="wb-tabela-historico">
           <div class="loading-overlay" style="position:static;padding:24px"><div class="spinner"></div> Carregando...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: EverWebinar -->
+  <div class="tab-content" id="tab-everwebinar">
+    <div class="page-title" style="justify-content:space-between">
+      <span>🎬 EverWebinar</span>
+      <button class="btn btn-primary btn-sm" onclick="ewNovoCliente()">+ Novo</button>
+    </div>
+
+    <!-- Lista de configs -->
+    <div id="ew-lista" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:24px">
+      <div class="loading-overlay" style="position:static;background:none;padding:32px 0;grid-column:1/-1"><div class="spinner"></div> Carregando...</div>
+    </div>
+
+    <!-- Painel de edição -->
+    <div id="ew-painel" style="display:none">
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div class="table-header">
+          <h3 id="ew-painel-titulo">Editar EverWebinar</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-danger btn-sm" onclick="ewDeletar()">🗑 Excluir</button>
+            <button class="btn btn-primary btn-sm" onclick="ewSalvar()">💾 Salvar</button>
+          </div>
+        </div>
+        <div style="padding:20px">
+          <input type="hidden" id="ew-id">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+            <div class="form-group" style="margin:0">
+              <label>Nome do cliente / evento</label>
+              <input type="text" id="ew-nome-cliente" placeholder="Ex: Cookie Limão">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Horário diário (Brasília)</label>
+              <input type="time" id="ew-horario" placeholder="20:00">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Duração (minutos)</label>
+              <input type="number" id="ew-duracao" placeholder="90" min="1" max="480">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Número Admin (WhatsApp)</label>
+              <input type="text" id="ew-numero-admin" placeholder="5511999999999">
+            </div>
+            <div class="form-group" style="margin:0;grid-column:1/-1">
+              <label>URL do player VTurb <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--text2)">— copie do embed do seu vídeo</span></label>
+              <input type="url" id="ew-vturb-url" placeholder="https://scripts.converteai.net/.../players/.../player.js">
+            </div>
+
+            <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+              <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:14px">Mensagens automáticas <span style="font-weight:400;text-transform:none;letter-spacing:0">— variáveis: {nome} {link_sala} {data} {hora}</span></div>
+              <div style="display:grid;grid-template-columns:1fr;gap:14px">
+                <div class="form-group" style="margin:0">
+                  <label>Confirmação (enviada no cadastro)</label>
+                  <textarea id="ew-msg-confirmacao" rows="3" placeholder="Olá {nome}! ✅ Sua inscrição foi confirmada.&#10;📅 {data} às {hora}h&#10;🔗 Acesse aqui: {link_sala}"></textarea>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label>Lembrete 1 hora antes</label>
+                  <textarea id="ew-msg-lembrete-1h" rows="2" placeholder="⏰ Falta 1 hora! Seu webinário começa às {hora}h.&#10;🔗 Acesse: {link_sala}"></textarea>
+                </div>
+                <div class="form-group" style="margin:0">
+                  <label>Lembrete 10 minutos antes</label>
+                  <textarea id="ew-msg-lembrete-10min" rows="2" placeholder="🚀 Começa em 10 minutos! Acesse agora: {link_sala}"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin:0;display:flex;align-items:center;gap:12px">
+              <label style="margin:0;text-transform:none;letter-spacing:0;font-size:14px;font-weight:600;color:var(--text)">Módulo ativo</label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="ew-ativo" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)">
+                <span id="ew-ativo-label" style="font-size:13px;color:var(--text2)">desativado</span>
+              </label>
+            </div>
+
+            <!-- Links de acesso -->
+            <div id="ew-links" style="grid-column:1/-1;display:none;background:var(--surface2);border-radius:var(--radius);padding:14px 16px">
+              <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:10px">Links do evento</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:12px;color:var(--text2);min-width:80px">Inscrição:</span>
+                  <code id="ew-link-inscricao" style="font-size:12px;color:var(--accent);flex:1;word-break:break-all"></code>
+                  <button class="btn btn-secondary btn-sm" onclick="ewCopiar('ew-link-inscricao')">Copiar</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:12px;color:var(--text2);min-width:80px">Sala:</span>
+                  <code id="ew-link-sala" style="font-size:12px;color:var(--accent);flex:1;word-break:break-all"></code>
+                  <button class="btn btn-secondary btn-sm" onclick="ewCopiar('ew-link-sala')">Copiar</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Registro manual -->
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div class="table-header">
+          <h3>Registrar lead manualmente</h3>
+        </div>
+        <div style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div class="form-group" style="margin:0;flex:1;min-width:160px">
+            <label>Nome</label>
+            <input type="text" id="ew-reg-nome" placeholder="Nome do lead">
+          </div>
+          <div class="form-group" style="margin:0;flex:1;min-width:160px">
+            <label>WhatsApp</label>
+            <input type="text" id="ew-reg-tel" placeholder="5511999999999">
+          </div>
+          <button class="btn btn-primary" onclick="ewRegistrarManual()">+ Registrar e enviar link</button>
+        </div>
+      </div>
+
+      <!-- Leads de hoje -->
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div class="table-header">
+          <h3>Leads inscritos</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="date" id="ew-filtro-data" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit">
+            <button class="btn btn-secondary btn-sm" onclick="ewCarregarLeads()">🔄 Filtrar</button>
+          </div>
+        </div>
+        <div id="ew-tabela-leads">
+          <div class="empty">Selecione um EverWebinar e clique em Filtrar.</div>
+        </div>
+      </div>
+
+      <!-- Histórico de sessões -->
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>Histórico de sessões</h3>
+          <button class="btn btn-secondary btn-sm" onclick="ewCarregarSessoes()">🔄 Atualizar</button>
+        </div>
+        <div id="ew-tabela-sessoes">
+          <div class="empty">Nenhuma sessão registrada ainda.</div>
         </div>
       </div>
     </div>
@@ -1187,6 +1364,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (item.dataset.tab === 'logs') carregarLogs();
     if (item.dataset.tab === 'webinario') { carregarConfigWebinario(); carregarHistoricoWebinario(); }
     if (item.dataset.tab === 'aquecimento-wz') carregarAquecimentoWZ();
+    if (item.dataset.tab === 'everwebinar') ewCarregarLista();
   });
 });
 
@@ -1204,6 +1382,11 @@ async function api(path, opts = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
+  // Sessão expirou/inválida → manda pra tela de login
+  if (res.status === 401) {
+    location.href = '/login?next=' + encodeURIComponent(location.pathname);
+    throw new Error('Sessão expirada');
+  }
   const ct = res.headers.get('content-type') || '';
   if (!ct.includes('application/json')) {
     const texto = await res.text();
@@ -1245,6 +1428,40 @@ async function carregarStatus() {
     document.getElementById('status-dot').style.background = '#DC2626';
     document.getElementById('status-text').textContent = 'Offline';
   }
+  carregarChaveSendflow();
+}
+
+async function carregarChaveSendflow() {
+  try {
+    const r = await api('/api/config/sendflow-key');
+    document.getElementById('sf-key-masked').textContent = r.masked;
+    const badge = document.getElementById('sf-key-override-badge');
+    const resetBtn = document.getElementById('sf-key-reset-btn');
+    badge.style.display = r.temOverride ? 'inline' : 'none';
+    resetBtn.style.display = r.temOverride ? 'inline-flex' : 'none';
+  } catch {}
+}
+
+async function salvarChaveSendflow() {
+  const key = document.getElementById('sf-key-input').value.trim();
+  if (!key) { toast('Digite a nova chave'); return; }
+  try {
+    await api('/api/config/sendflow-key', { method: 'POST', body: JSON.stringify({ key }) });
+    document.getElementById('sf-key-input').value = '';
+    document.getElementById('sf-key-status').textContent = '✅ Chave salva!';
+    setTimeout(() => { document.getElementById('sf-key-status').textContent = ''; }, 3000);
+    toast('✅ Chave salva — ativa imediatamente');
+    carregarChaveSendflow();
+  } catch (e) { toast('❌ ' + e.message); }
+}
+
+async function resetarChaveSendflow() {
+  if (!confirm('Remover override e voltar a usar a chave do .env?')) return;
+  try {
+    await api('/api/config/sendflow-key', { method: 'DELETE' });
+    toast('↩ Override removido — usando chave do .env');
+    carregarChaveSendflow();
+  } catch (e) { toast('❌ ' + e.message); }
 }
 
 async function carregarPendentes() {
@@ -1796,15 +2013,18 @@ async function wbCarregarHistorico() {
     }
     el.innerHTML = `<table>
       <thead><tr><th>Data</th><th>Nome do grupo</th><th>Link</th><th>Switchy</th><th></th></tr></thead>
-      <tbody>${lista.map(w => `
-        <tr>
+      <tbody>${lista.map(w => {
+        const retentarBtn = (!w.switchyAtualizado && w.linkGrupo)
+          ? `<button class="btn btn-secondary btn-sm" onclick="wbRetentarSwitchy('${escHtml(w.linkGrupo)}')" style="margin-left:4px" title="Retentar atualização do link Switchy">🔗 Switchy</button>`
+          : '';
+        return `<tr>
           <td style="white-space:nowrap">${formatDate(w.dataWebinario)}</td>
           <td><strong>${escHtml(w.nome)}</strong></td>
           <td>${w.linkGrupo ? `<a href="${escHtml(w.linkGrupo)}" target="_blank" style="color:var(--accent)">🔗 abrir</a>` : '-'}</td>
-          <td style="text-align:center">${w.switchyAtualizado ? '✅' : '❌'}</td>
-          <td><button class="btn btn-secondary btn-sm" onclick="wbReenviarWpp('${escHtml(w.campaignId)}')">📨 WPP</button></td>
-        </tr>
-      `).join('')}</tbody>
+          <td style="text-align:center">${w.switchyAtualizado ? '✅' : '<span title="Switchy não atualizado — use o botão 🔗 Switchy para retentar" style="cursor:help">❌</span>'}</td>
+          <td><button class="btn btn-secondary btn-sm" onclick="wbReenviarWpp('${escHtml(w.campaignId)}')">📨 WPP</button>${retentarBtn}</td>
+        </tr>`;
+      }).join('')}</tbody>
     </table>`;
   } catch {
     el.innerHTML = '<div class="empty">Erro ao carregar histórico.</div>';
@@ -1848,14 +2068,46 @@ async function wbExecutar() {
 
 async function wbTestarSwitchy() {
   const id = document.getElementById('wb-id').value;
-  toast('Testando conexão com Switch.io...');
+  toast('Testando Switch.io e listando links...');
   try {
     const res = await api(`/api/webinario/${id}/testar-switchy`, { method: 'POST' });
     if (res.ok) {
-      const nomes = (res.workspaces || []).map(w => w.name).join(', ') || '(nenhum)';
-      toast(`✅ Switch.io ok! Workspaces: ${nomes}`);
+      const wsNomes = (res.workspaces || []).map(w => w.name).join(', ') || '(nenhum)';
+      if (res.links && res.links.length > 0) {
+        const linkMatch = res.links.find(l => l.id === res.linkId);
+        const linksList = res.links.map(l => `${l.id} → ${l.url}`).join('\n');
+        if (linkMatch) {
+          toast(`✅ Switch.io ok! Link "${res.linkId}" encontrado → ${linkMatch.url}`);
+        } else {
+          const ids = res.links.map(l => l.id).join(', ');
+          toast(`⚠️ Switch.io ok mas link "${res.linkId}" NÃO encontrado no domínio "${res.domain}".\nLinks existentes: ${ids}`);
+        }
+        console.log('[Switchy] Links encontrados:\n' + linksList);
+      } else {
+        toast(`✅ Switch.io ok (workspaces: ${wsNomes}). Nenhum link encontrado no domínio "${res.domain}" — verifique se o link "${res.linkId}" existe no Switchy.`);
+      }
     } else {
       toast('❌ Switch.io falhou: ' + (res.error || 'Erro desconhecido'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function wbRetentarSwitchy(linkGrupo) {
+  const id = document.getElementById('wb-id').value;
+  if (!id || !linkGrupo) return;
+  toast('Retentando atualização do Switch.io...');
+  try {
+    const res = await api(`/api/webinario/${id}/retentar-switchy`, {
+      method: 'POST',
+      body: JSON.stringify({ linkGrupo }),
+    });
+    if (res.ok) {
+      toast('✅ Switch.io atualizado com sucesso!');
+      wbCarregarHistorico();
+    } else {
+      toast('❌ Falhou: ' + (res.error || 'Erro desconhecido'));
     }
   } catch (e) {
     toast('Erro: ' + e.message);
@@ -3445,6 +3697,258 @@ function carregarAquecimentoWZ() {
   wzCarregarCampanhas();
   wzCarregarDefaults();
   wzCarregarHistorico();
+}
+
+// ─── EverWebinar ───
+
+document.getElementById('ew-ativo').addEventListener('change', function() {
+  document.getElementById('ew-ativo-label').textContent = this.checked ? 'ativado' : 'desativado';
+});
+
+async function ewCarregarLista() {
+  const el = document.getElementById('ew-lista');
+  try {
+    const lista = await api('/api/everwebinar');
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:32px 0">Nenhum EverWebinar configurado. Clique em "+ Novo" para começar.</div>';
+      return;
+    }
+    el.innerHTML = lista.map(w => {
+      const cor = w.ativo ? 'var(--good)' : 'var(--text2)';
+      const dot = w.ativo ? '●' : '○';
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-weight:600;font-size:14px">${escHtml(w.nome_cliente || w.id)}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Todo dia às ${escHtml(w.horario || '—')}</div>
+          </div>
+          <span style="color:${cor};font-size:13px;font-weight:600">${dot} ${w.ativo ? 'ativo' : 'pausado'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2)">${w.duracao_minutos || '—'} min · VTurb ${w.vturb_player_url ? '✅' : '❌'}</div>
+        <button class="btn btn-secondary btn-sm" onclick="ewEditar('${escHtml(w.id)}')">✏️ Editar</button>
+      </div>`;
+    }).join('');
+  } catch {
+    el.innerHTML = '<div class="empty" style="grid-column:1/-1">Erro ao carregar lista.</div>';
+  }
+}
+
+async function ewEditar(id) {
+  try {
+    const cfg = await api(`/api/everwebinar/${id}/config`);
+    document.getElementById('ew-id').value = id;
+    document.getElementById('ew-painel-titulo').textContent = `Editando: ${cfg.nome_cliente || id}`;
+    document.getElementById('ew-nome-cliente').value = cfg.nome_cliente || '';
+    document.getElementById('ew-horario').value = cfg.horario || '';
+    document.getElementById('ew-duracao').value = cfg.duracao_minutos || '';
+    document.getElementById('ew-numero-admin').value = cfg.numero_admin || '';
+    document.getElementById('ew-vturb-url').value = cfg.vturb_player_url || '';
+    document.getElementById('ew-msg-confirmacao').value = cfg.mensagem_confirmacao || '';
+    document.getElementById('ew-msg-lembrete-1h').value = cfg.mensagem_lembrete_1h || '';
+    document.getElementById('ew-msg-lembrete-10min').value = cfg.mensagem_lembrete_10min || '';
+    document.getElementById('ew-ativo').checked = cfg.ativo || false;
+    document.getElementById('ew-ativo-label').textContent = cfg.ativo ? 'ativado' : 'desativado';
+
+    // Atualiza links de acesso
+    const base = location.origin;
+    document.getElementById('ew-link-inscricao').textContent = `${base}/inscrever?ew=${id}`;
+    document.getElementById('ew-link-sala').textContent = `${base}/sala?ew=${id}&s=YYYY-MM-DDTHH:MM`;
+    document.getElementById('ew-links').style.display = 'block';
+
+    // Define data padrão do filtro de leads como hoje
+    const hoje = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    document.getElementById('ew-filtro-data').value = hoje;
+
+    document.getElementById('ew-painel').style.display = 'block';
+    document.getElementById('ew-painel').scrollIntoView({ behavior: 'smooth' });
+    ewCarregarLeads();
+    ewCarregarSessoes();
+  } catch (e) {
+    toast('Erro ao carregar: ' + e.message);
+  }
+}
+
+function ewNovoCliente() {
+  document.getElementById('ew-id').value = '';
+  document.getElementById('ew-painel-titulo').textContent = 'Novo EverWebinar';
+  document.getElementById('ew-nome-cliente').value = '';
+  document.getElementById('ew-horario').value = '';
+  document.getElementById('ew-duracao').value = '90';
+  document.getElementById('ew-numero-admin').value = '';
+  document.getElementById('ew-vturb-url').value = '';
+  document.getElementById('ew-msg-confirmacao').value = '';
+  document.getElementById('ew-msg-lembrete-1h').value = '';
+  document.getElementById('ew-msg-lembrete-10min').value = '';
+  document.getElementById('ew-ativo').checked = false;
+  document.getElementById('ew-ativo-label').textContent = 'desativado';
+  document.getElementById('ew-links').style.display = 'none';
+  document.getElementById('ew-tabela-leads').innerHTML = '<div class="empty">Salve primeiro para ver os leads.</div>';
+  document.getElementById('ew-tabela-sessoes').innerHTML = '<div class="empty">Nenhuma sessão ainda.</div>';
+  document.getElementById('ew-painel').style.display = 'block';
+  document.getElementById('ew-painel').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function ewSalvar() {
+  const id = document.getElementById('ew-id').value.trim();
+  const cfg = {
+    ativo: document.getElementById('ew-ativo').checked,
+    nome_cliente: document.getElementById('ew-nome-cliente').value,
+    horario: document.getElementById('ew-horario').value,
+    duracao_minutos: parseInt(document.getElementById('ew-duracao').value) || 90,
+    numero_admin: document.getElementById('ew-numero-admin').value,
+    vturb_player_url: document.getElementById('ew-vturb-url').value,
+    mensagem_confirmacao: document.getElementById('ew-msg-confirmacao').value,
+    mensagem_lembrete_1h: document.getElementById('ew-msg-lembrete-1h').value,
+    mensagem_lembrete_10min: document.getElementById('ew-msg-lembrete-10min').value,
+  };
+  try {
+    let res;
+    if (id) {
+      res = await api(`/api/everwebinar/${id}/config`, { method: 'POST', body: JSON.stringify(cfg) });
+    } else {
+      res = await api('/api/everwebinar', { method: 'POST', body: JSON.stringify(cfg) });
+      if (res.ok && res.id) {
+        document.getElementById('ew-id').value = res.id;
+        document.getElementById('ew-link-inscricao').textContent = `${location.origin}/inscrever?ew=${res.id}`;
+        document.getElementById('ew-link-sala').textContent = `${location.origin}/sala?ew=${res.id}&s=YYYY-MM-DDTHH:MM`;
+        document.getElementById('ew-links').style.display = 'block';
+      }
+    }
+    if (res.ok) {
+      toast('✅ Salvo!');
+      ewCarregarLista();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function ewDeletar() {
+  const id = document.getElementById('ew-id').value;
+  if (!id) return;
+  if (!confirm('Excluir este EverWebinar? Os leads registrados serão mantidos.')) return;
+  try {
+    const res = await api(`/api/everwebinar/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      toast('Excluído.');
+      document.getElementById('ew-painel').style.display = 'none';
+      ewCarregarLista();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function ewCarregarLeads() {
+  const id = document.getElementById('ew-id').value;
+  if (!id) return;
+  const data = document.getElementById('ew-filtro-data').value;
+  const el = document.getElementById('ew-tabela-leads');
+  el.innerHTML = '<div style="padding:16px;color:var(--text2)"><div class="spinner" style="display:inline-block;margin-right:8px"></div> Carregando...</div>';
+  try {
+    const url = `/api/everwebinar/${id}/leads${data ? `?data=${data}` : ''}`;
+    const lista = await api(url);
+    if (!lista.length) {
+      el.innerHTML = `<div class="empty">Nenhum lead ${data ? 'para esta data' : 'registrado'}.</div>`;
+      return;
+    }
+    el.innerHTML = `<table>
+      <thead><tr><th>Nome</th><th>WhatsApp</th><th>Sessão</th><th>Confirmação</th><th>Lembretes</th><th></th></tr></thead>
+      <tbody>${lista.map(l => {
+        const [, mes, dia] = (l.sessao_data || '').split('-');
+        const sessaoFmt = `${dia}/${mes} ${l.sessao_hora}h`;
+        const conf = l.confirmacao_enviada ? '<span style="color:var(--good)">✅</span>' : '<span style="color:var(--text2)">—</span>';
+        const lemb = [
+          l.lembrete_1h_enviado ? '1h ✅' : '1h ○',
+          l.lembrete_10min_enviado ? '10min ✅' : '10min ○',
+        ].join(' · ');
+        const regFmt = l.registrado_em ? new Date(l.registrado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—';
+        return `<tr>
+          <td><strong>${escHtml(l.nome || '—')}</strong></td>
+          <td style="font-family:monospace;font-size:12px">${escHtml(l.telefone)}</td>
+          <td style="white-space:nowrap">${sessaoFmt}</td>
+          <td style="text-align:center">${conf}</td>
+          <td style="font-size:12px;color:var(--text2)">${lemb}</td>
+          <td><button class="btn btn-secondary btn-sm" onclick="ewReenviar('${escHtml(id)}','${escHtml(l.id)}')">📨</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div style="padding:10px 16px;font-size:12px;color:var(--text2);border-top:1px solid var(--border)">${lista.length} lead${lista.length !== 1 ? 's' : ''}</div>`;
+  } catch {
+    el.innerHTML = '<div class="empty">Erro ao carregar leads.</div>';
+  }
+}
+
+async function ewCarregarSessoes() {
+  const id = document.getElementById('ew-id').value;
+  if (!id) return;
+  const el = document.getElementById('ew-tabela-sessoes');
+  try {
+    const lista = await api(`/api/everwebinar/${id}/sessoes`);
+    if (!lista.length) {
+      el.innerHTML = '<div class="empty">Nenhuma sessão registrada ainda.</div>';
+      return;
+    }
+    el.innerHTML = `<table>
+      <thead><tr><th>Data</th><th>Horário</th><th>Inscritos</th></tr></thead>
+      <tbody>${lista.map(s => {
+        const [ano, mes, dia] = (s.data || '').split('-');
+        return `<tr>
+          <td>${dia}/${mes}/${ano}</td>
+          <td>${s.hora}</td>
+          <td><strong>${s.inscritos}</strong></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } catch {
+    el.innerHTML = '<div class="empty">Erro ao carregar sessões.</div>';
+  }
+}
+
+async function ewRegistrarManual() {
+  const id = document.getElementById('ew-id').value;
+  if (!id) { toast('Salve o EverWebinar primeiro.'); return; }
+  const nome = document.getElementById('ew-reg-nome').value.trim();
+  const telefone = document.getElementById('ew-reg-tel').value.trim();
+  if (!telefone) { toast('Informe o WhatsApp do lead.'); return; }
+  try {
+    const res = await api(`/api/everwebinar/${id}/registrar`, {
+      method: 'POST',
+      body: JSON.stringify({ nome, telefone }),
+    });
+    if (res.ok) {
+      const [, mes, dia] = (res.sessao_data || '').split('-');
+      toast(`✅ Registrado! Sessão: ${dia}/${mes} às ${res.sessao_hora}h${res.confirmacao_enviada ? ' · DM enviado' : ''}`);
+      document.getElementById('ew-reg-nome').value = '';
+      document.getElementById('ew-reg-tel').value = '';
+      ewCarregarLeads();
+      ewCarregarSessoes();
+    } else {
+      toast('Erro: ' + (res.error || 'Falha'));
+    }
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+async function ewReenviar(ewId, leadId) {
+  toast('Reenviando DM...');
+  try {
+    const res = await api(`/api/everwebinar/${ewId}/reenviar/${leadId}`, { method: 'POST' });
+    if (res.ok) toast('✅ DM reenviado!');
+    else toast('Erro: ' + (res.error || 'Falha'));
+  } catch (e) {
+    toast('Erro: ' + e.message);
+  }
+}
+
+function ewCopiar(elementId) {
+  const txt = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(txt).then(() => toast('Link copiado!')).catch(() => toast('Não foi possível copiar.'));
 }
 
 // ─── Init ───

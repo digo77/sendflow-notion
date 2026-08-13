@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · Sendflow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F6F3; --surface:#FFFFFF; --border:#E7E5DF;
+    --text:#1F1F1E; --text2:#5E5C57; --muted:#8E8B83;
+    --accent:#128C7E; --accent2:#075E54; --danger:#B91C1C;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;background:linear-gradient(135deg,#EFEAE2 0%,#F7F6F3 100%);
+    color:var(--text);font:15px/1.5 'Inter',system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:18px;
+    padding:36px 32px;width:100%;max-width:380px;
+    box-shadow:0 12px 40px rgba(0,0,0,.08);
+  }
+  .logo{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--accent);margin:0 0 4px}
+  .sub{font-size:13px;color:var(--text2);margin:0 0 28px}
+  label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin:0 0 6px}
+  .field{margin-bottom:18px}
+  input{
+    width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:11px;
+    font:15px 'Inter',sans-serif;color:var(--text);background:var(--surface);transition:border .15s,box-shadow .15s;
+  }
+  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(18,140,126,.13)}
+  button{
+    width:100%;padding:13px;border:none;border-radius:11px;cursor:pointer;
+    background:var(--accent);color:#fff;font:600 15px 'Inter',sans-serif;transition:background .15s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  button:hover{background:var(--accent2)}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .erro{
+    display:none;background:#FEE2E2;border:1px solid #FECACA;color:var(--danger);
+    font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:18px;
+  }
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <form class="card" id="form">
+    <h1 class="logo">🚀 Sendflow</h1>
+    <p class="sub">Entre para acessar o painel</p>
+    <div class="erro" id="erro"></div>
+    <div class="field">
+      <label for="user">Usuário</label>
+      <input type="text" id="user" autocomplete="username" autofocus required>
+    </div>
+    <div class="field">
+      <label for="pass">Senha</label>
+      <input type="password" id="pass" autocomplete="current-password" required>
+    </div>
+    <button type="submit" id="btn">Entrar</button>
+    <p class="hint">Você permanece conectado por 30 dias neste navegador.</p>
+  </form>
+
+<script>
+  const form = document.getElementById('form');
+  const btn = document.getElementById('btn');
+  const erro = document.getElementById('erro');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    erro.style.display = 'none';
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.innerHTML = '<span class="spinner"></span> Entrando...';
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: document.getElementById('user').value, pass: document.getElementById('pass').value }),
+      });
+      if (r.ok) {
+        // Volta pra página que o usuário tentou acessar, ou o dashboard
+        const dest = new URLSearchParams(location.search).get('next') || '/';
+        location.href = dest;
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      erro.textContent = d.error || 'Falha no login';
+      erro.style.display = 'block';
+    } catch (err) {
+      erro.textContent = 'Erro de conexão. Tente de novo.';
+      erro.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = label;
+  });
+</script>
+</body>
+</html>

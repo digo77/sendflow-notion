@@ -15,6 +15,32 @@ import { listarGruposDoRelease, atualizarGrupo } from './sendflow.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STORE_PATH = join(__dirname, 'data', 'wz-agendados.json');
+const BLOCK_PATH = join(__dirname, 'data', 'wz-bloqueio.json');
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function isRateLimitErr(err) {
+  const code = err.response?.data?.code;
+  return code === 'rate-limit-exceeded' || code === 'api-key-blocked';
+}
+
+async function salvarBloqueio(ate) {
+  await mkdir(dirname(BLOCK_PATH), { recursive: true });
+  await writeFile(BLOCK_PATH, JSON.stringify({ bloqueadoAte: ate }), 'utf-8');
+}
+
+async function lerBloqueioArquivo() {
+  try {
+    const raw = await readFile(BLOCK_PATH, 'utf-8');
+    return JSON.parse(raw).bloqueadoAte || null;
+  } catch { return null; }
+}
+
+export async function lerBloqueio() {
+  const ate = await lerBloqueioArquivo();
+  if (!ate || new Date(ate) <= new Date()) return null;
+  return ate;
+}
 
 async function ler() {
   try {
@@ -50,9 +76,11 @@ async function executarAcao(entrada) {
       await atualizarGrupo(g.id, { [campo]: entrada.payload });
       detalhes.push({ grupoId: g.id, nome: g.name, ok: true });
     } catch (err) {
+      if (isRateLimitErr(err)) throw err; // propaga imediatamente — para o loop externo
       const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
       detalhes.push({ grupoId: g.id, nome: g.name, ok: false, erro: msg });
     }
+    await sleep(1200); // 1.2s entre cada grupo para não estourar rate limit
   }
 
   const falhas = detalhes.filter((d) => !d.ok).length;
@@ -122,9 +150,9 @@ export async function executarPendentes() {
     (e.status === 'pendente' || e.status === 'erro_agendamento') &&
     new Date(e.scheduledTo).getTime() <= agora
   );
-  if (!pendentes.length) return { executadas: 0 };
+  if (!pendentes.length) return { executadas: 0, bloqueadoAte: null };
 
-  let ok = 0, falhas = 0;
+  let ok = 0, falhas = 0, bloqueadoAte = null;
   for (const entrada of pendentes) {
     try {
       const detalhes = await executarAcao(entrada);
@@ -135,15 +163,40 @@ export async function executarPendentes() {
       console.log(`[WZ-Agendador] ✅ ${entrada.acaoId} executado (${detalhes.gruposAtualizados?.length || 0} grupos)`);
     } catch (err) {
       const msg = err.response ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}` : err.message;
+      falhas++;
+      if (isRateLimitErr(err)) {
+        // Chave bloqueada ou rate limit — aborta o lote, deixa os demais como pendente
+        const retryMs = err.response?.data?.retryAfterMs || 60000;
+        console.warn(`[WZ-Agendador] ⚠️ ${entrada.acaoId}: rate limit/bloqueio (retry em ${Math.round(retryMs/1000)}s) — abortando lote`);
+        entrada.status = 'erro';
+        entrada.erro = msg;
+        entrada.tentadoEm = new Date().toISOString();
+        bloqueadoAte = new Date(Date.now() + retryMs).toISOString();
+        await salvarBloqueio(bloqueadoAte).catch(() => {});
+        break; // não tenta os próximos — ficam como 'pendente' e o cron tenta de novo
+      }
       entrada.status = 'erro';
       entrada.erro = msg;
       entrada.tentadoEm = new Date().toISOString();
-      falhas++;
       console.error(`[WZ-Agendador] ❌ ${entrada.acaoId}: ${msg}`);
     }
+    await sleep(1500); // 1.5s entre ações para não estourar rate limit
   }
   await salvar(todos);
-  return { executadas: ok, falhas };
+  return { executadas: ok, falhas, bloqueadoAte };
+}
+
+/** Reseta um agendamento com erro para pendente, para o cron tentar novamente. */
+export async function retentarAgendado(id) {
+  const todos = await ler();
+  const entrada = todos.find((e) => e.id === id);
+  if (!entrada) throw new Error('Agendamento não encontrado');
+  if (entrada.status !== 'erro') throw new Error(`Status atual: ${entrada.status} — só retentar erros`);
+  entrada.status = 'pendente';
+  delete entrada.erro;
+  delete entrada.tentadoEm;
+  await salvar(todos);
+  return entrada;
 }
 
 /** Força a execução imediata de UM agendamento (pra testes). */

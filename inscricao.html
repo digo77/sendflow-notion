@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inscrição — Webinário</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0f0f0f;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 20px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+}
+.logo {
+  font-size: 28px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 6px;
+  color: #f9fafb;
+}
+.subtitle {
+  font-size: 14px;
+  color: #9ca3af;
+  text-align: center;
+  margin-bottom: 36px;
+  line-height: 1.5;
+}
+.sessao-info {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sessao-icon { font-size: 22px; }
+.sessao-texto { flex: 1; }
+.sessao-data { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+.sessao-hora { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.form-group { margin-bottom: 18px; }
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+input {
+  width: 100%;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: #f9fafb;
+  font-family: inherit;
+  outline: none;
+  transition: border .15s;
+}
+input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+input::placeholder { color: #4b5563; }
+.btn {
+  width: 100%;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+  margin-top: 8px;
+}
+.btn:hover { background: #4338ca; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.aviso {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+/* ─── Sucesso ─── */
+.sucesso {
+  display: none;
+  text-align: center;
+}
+.sucesso-icon { font-size: 52px; margin-bottom: 20px; }
+.sucesso-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #f9fafb; }
+.sucesso-sub { font-size: 14px; color: #9ca3af; line-height: 1.7; }
+.sucesso-link {
+  display: inline-block;
+  margin-top: 24px;
+  background: #4f46e5;
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.erro-msg {
+  background: #2d1010;
+  border: 1px solid #7f1d1d;
+  color: #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Formulário -->
+  <div id="form-area">
+    <div class="logo">🎓</div>
+    <div class="title" id="event-title">Webinário Gratuito</div>
+    <div class="subtitle" id="event-subtitle">Garanta sua vaga e receba o link pelo WhatsApp</div>
+
+    <div class="sessao-info" id="sessao-info" style="display:none">
+      <div class="sessao-icon">📅</div>
+      <div class="sessao-texto">
+        <div class="sessao-data" id="sessao-data-txt">—</div>
+        <div class="sessao-hora" id="sessao-hora-txt">—</div>
+      </div>
+    </div>
+
+    <div class="erro-msg" id="erro-msg"></div>
+
+    <div class="form-group">
+      <label>Seu nome</label>
+      <input type="text" id="inp-nome" placeholder="Como posso te chamar?" autocomplete="given-name">
+    </div>
+    <div class="form-group">
+      <label>WhatsApp (com DDD)</label>
+      <input type="tel" id="inp-tel" placeholder="(11) 99999-9999" autocomplete="tel">
+    </div>
+
+    <button class="btn" id="btn-inscricao" onclick="inscrever()">Quero minha vaga gratuita →</button>
+    <div class="aviso">Você receberá o link de acesso pelo WhatsApp.</div>
+  </div>
+
+  <!-- Sucesso -->
+  <div id="sucesso-area" class="sucesso">
+    <div class="sucesso-icon">✅</div>
+    <div class="sucesso-title">Inscrição confirmada!</div>
+    <div class="sucesso-sub" id="sucesso-sub">
+      Você receberá o link pelo WhatsApp.<br>
+      Fique de olho nas mensagens!
+    </div>
+    <a id="btn-sala" href="#" class="sucesso-link" style="display:none">Acessar sala agora →</a>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  const params = new URLSearchParams(location.search);
+  const ewId = params.get('ew');
+
+  if (!ewId) {
+    document.getElementById('event-title').textContent = 'Link inválido';
+    document.getElementById('event-subtitle').textContent = 'Verifique o link recebido.';
+    document.getElementById('btn-inscricao').disabled = true;
+    return;
+  }
+
+  // Carrega info pública do evento
+  fetch(`/api/everwebinar/${ewId}/public`)
+    .then(r => r.ok ? r.json() : null)
+    .then(cfg => {
+      if (!cfg) return;
+      if (cfg.nome_cliente) document.getElementById('event-title').textContent = cfg.nome_cliente;
+
+      // Calcula sessão no cliente (mesmo algoritmo do backend)
+      const horario = cfg.horario || '20:00';
+      const [hh, mm] = horario.split(':').map(Number);
+      const agora = new Date();
+      // Hora em SP (UTC-3)
+      const agoraSP = new Date(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+      const sessaoHoje = new Date(agoraSP);
+      sessaoHoje.setHours(hh, mm, 0, 0);
+
+      const base = agoraSP < sessaoHoje ? agoraSP : (() => {
+        const d = new Date(agoraSP); d.setDate(d.getDate() + 1); return d;
+      })();
+
+      const dd = String(base.getDate()).padStart(2, '0');
+      const mes = String(base.getMonth() + 1).padStart(2, '0');
+      const horaFmt = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      const ehHoje = base.toDateString() === agoraSP.toDateString();
+
+      document.getElementById('sessao-data-txt').textContent = `${ehHoje ? 'Hoje' : 'Amanhã'}, ${dd}/${mes}`;
+      document.getElementById('sessao-hora-txt').textContent = `às ${horaFmt}h`;
+      document.getElementById('sessao-info').style.display = 'flex';
+    })
+    .catch(() => {});
+
+  // Máscara de telefone
+  document.getElementById('inp-tel').addEventListener('input', function() {
+    let v = this.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+    else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+    else if (v.length > 0) v = `(${v}`;
+    this.value = v;
+  });
+
+  window.inscrever = async function() {
+    const nome = document.getElementById('inp-nome').value.trim();
+    const telRaw = document.getElementById('inp-tel').value.replace(/\D/g, '');
+    const erro = document.getElementById('erro-msg');
+    erro.style.display = 'none';
+
+    if (!nome) { mostrarErro('Por favor, informe seu nome.'); return; }
+    if (telRaw.length < 10) { mostrarErro('Por favor, informe um WhatsApp válido.'); return; }
+
+    const btn = document.getElementById('btn-inscricao');
+    btn.disabled = true;
+    btn.textContent = 'Confirmando inscrição...';
+
+    try {
+      const r = await fetch(`/api/everwebinar/${ewId}/registrar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, telefone: telRaw }),
+      });
+      const data = await r.json();
+
+      if (data.ok) {
+        // Formata data para exibição
+        const [, mesR, diaR] = (data.sessao_data || '').split('-');
+        const sub = `Sua sessão: <strong>${diaR}/${mesR} às ${data.sessao_hora}h</strong><br>
+          ${data.confirmacao_enviada ? 'Link enviado no seu WhatsApp ✉️' : 'Você receberá o link pelo WhatsApp em breve.'}`;
+        document.getElementById('sucesso-sub').innerHTML = sub;
+
+        if (data.link_sala) {
+          const btnSala = document.getElementById('btn-sala');
+          btnSala.href = data.link_sala;
+          btnSala.style.display = 'inline-block';
+        }
+
+        document.getElementById('form-area').style.display = 'none';
+        document.getElementById('sucesso-area').style.display = 'block';
+      } else {
+        mostrarErro(data.error || 'Erro ao confirmar inscrição. Tente novamente.');
+        btn.disabled = false;
+        btn.textContent = 'Quero minha vaga gratuita →';
+      }
+    } catch (e) {
+      mostrarErro('Erro de conexão. Tente novamente.');
+      btn.disabled = false;
+      btn.textContent = 'Quero minha vaga gratuita →';
+    }
+  };
+
+  function mostrarErro(msg) {
+    const el = document.getElementById('erro-msg');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // Submit com Enter
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') window.inscrever();
+  });
+})();
+</script>
+</body>
+</html>

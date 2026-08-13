@@ -1,8 +1,30 @@
 import axios from 'axios';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const _dir = dirname(fileURLToPath(import.meta.url));
+const KEY_PATH = join(_dir, 'data', 'sendflow-key.json');
+
+function lerKeyOverride() {
+  try { return JSON.parse(readFileSync(KEY_PATH, 'utf-8')).key || null; } catch { return null; }
+}
+
+// Enriquece erros do axios com o body da resposta (ex: api-key-blocked, rate-limit-exceeded)
+axios.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.data) {
+      const body = typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data);
+      err.message = `HTTP ${err.response.status}: ${body}`;
+    }
+    return Promise.reject(err);
+  }
+);
 
 const API = () => process.env.SENDFLOW_API_URL?.replace(/\/$/, '');
 const PRO_API = 'https://sendflow.pro';
-const TOKEN = () => process.env.SENDFLOW_API_TOKEN;
+const TOKEN = () => lerKeyOverride() || process.env.SENDFLOW_API_TOKEN;
 const ACCOUNT = () => process.env.SENDFLOW_ACCOUNT_ID;
 
 function headers() {

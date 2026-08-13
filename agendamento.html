@@ -92,6 +92,13 @@
   .status.pend{background:rgba(245,158,11,.14);color:#92400E}
   .status.agend{background:rgba(16,185,129,.14);color:#065F46}
   .status.past{background:rgba(156,163,175,.2);color:#374151}
+  .status.erro{background:rgba(239,68,68,.14);color:#991B1B}
+  .card.erro .card-body{background:#FFF1F2}
+  .erro-box{background:#FEE2E2;border:1px solid #FECACA;border-radius:8px;padding:7px 9px;font-size:11px;color:#991B1B;font-family:'DM Mono',monospace;margin-top:8px;word-break:break-all;white-space:pre-wrap;max-height:60px;overflow:hidden}
+  .banner{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:10px;font-size:13px;font-weight:500;margin-bottom:14px}
+  .banner.blocked{background:#FEF3C7;border:1px solid #FDE68A;color:#92400E}
+  .banner.ok{background:#F0FDF4;border:1px solid #BBF7D0;color:#065F46}
+  .cron-tag{font-size:11px;color:var(--text2);padding:4px 8px;border-radius:6px;background:var(--surface2);font-weight:500}
 
   /* Conteúdo — simula WhatsApp */
   .card-body{padding:12px;background:var(--wa-bg);flex:1;min-height:140px;display:flex;flex-direction:column;justify-content:flex-start}
@@ -135,10 +142,12 @@
 <div class="topbar">
   <h1>🚀 Agendamento</h1>
   <div class="spacer"></div>
+  <span id="cron-tag" class="cron-tag" style="display:none"></span>
   <a href="/">← Dashboard completo</a>
 </div>
 
 <div class="shell">
+  <div id="banner-blocked" class="banner blocked" style="display:none"></div>
 
   <!-- PANEL 1: Campanha + Notion -->
   <div class="panel">
@@ -192,7 +201,10 @@
       <div id="cards" class="cards"></div>
     </div>
 
-    <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+    <div class="row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);align-items:center">
+      <label id="lbl-sel-todas" style="display:none;gap:8px;align-items:center;font-size:13px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="chk-sel-todas" style="width:17px;height:17px;cursor:pointer"> Selecionar todas pendentes
+      </label>
       <div style="flex:1"></div>
       <button class="btn primary" id="btn-agendar-todas">🚀 Agendar todas pendentes</button>
     </div>
@@ -214,6 +226,10 @@ function toast(msg, ms=2600){ const t=$('toast'); t.textContent=msg; t.classList
 
 async function api(path, opts={}){
   const res = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
+  if (res.status === 401) {
+    location.href = '/login?next=' + encodeURIComponent(location.pathname);
+    throw new Error('Sessão expirada');
+  }
   const data = await res.json().catch(()=>({}));
   if (!res.ok) throw new Error(data.error || ('HTTP '+res.status));
   return data;
@@ -243,6 +259,7 @@ let itens = [];          // do /api/wz/preview
 let _pendentesIds = [];  // IDs do modal "Agendar tudo" — evita JSON inline em onclick
 let agendadosCache = []; // do /api/wz/agendados
 let filtroAtual = 'all';
+let selecionados = new Set(); // IDs marcados pra agendamento em lote
 
 // ─── Load campaigns ────────────────────────────────────────────────────
 async function carregarCampanhas(){
@@ -254,14 +271,13 @@ async function carregarCampanhas(){
     sel.innerHTML = '<option value="">— sem campanha (cache padrão) —</option>';
   } else {
     sel.innerHTML = campanhas.map(c => {
-      const nome = c.nome || c.releaseId;
+      const nome = c.nome || c.nomeBase || c.releaseId;
       const sufixo = [
         c.totalMensagens ? `${c.totalMensagens} msgs` : null,
         c.modoLivre ? 'livre' : null,
       ].filter(Boolean).join(' · ');
-      const base = sufixo ? `${nome}  ·  ${sufixo}` : nome;
-      const label = `${base}  ·  ${c.releaseId}`;
-      return `<option value="${esc(c.releaseId)}">${esc(label)}</option>`;
+      const label = sufixo ? `${nome}  ·  ${sufixo}` : nome;
+      return `<option value="${esc(c.releaseId)}" title="${esc(c.releaseId)}">${esc(label)}</option>`;
     }).join('') + '<option value="">— cache padrão —</option>';
   }
   // Preserva seleção atual se ainda existe; senão pega a primeira com mensagens
@@ -342,9 +358,9 @@ async function recarregarItens(){
     itens = [];
     if (e.message && !/dataReferencia obrigat/.test(e.message)) toast('⚠️ '+e.message);
   }
-  // Agendados
+  // Agendados (todos os status para detectar erros)
   try {
-    const params = new URLSearchParams({status:'pendente'});
+    const params = new URLSearchParams();
     if (ridAtual) params.set('releaseId', ridAtual);
     agendadosCache = await api('/api/wz/agendados?' + params.toString());
   } catch { agendadosCache = []; }
@@ -364,10 +380,12 @@ document.querySelectorAll('.chip[data-filter]').forEach(c => {
 function statusDe(m, agora){
   const ts = new Date(m.scheduledTo).getTime();
   if (ts <= agora) return 'past';
-  const ja = agendadosCache.some(a => a.scheduledTo === m.scheduledTo && a.status === 'pendente');
-  if (ja) return 'agend';
+  const agendado = agendadosCache.find(a => a.scheduledTo === m.scheduledTo);
+  if (agendado?.status === 'pendente') return 'agend';
+  if (agendado?.status === 'erro') return 'erro';
   return 'pend';
 }
+function agendadoDe(m){ return agendadosCache.find(a => a.scheduledTo === m.scheduledTo); }
 
 function render(){
   const agora = Date.now();
@@ -380,11 +398,12 @@ function render(){
   $('ct-ds').textContent = byTipo.atualizar_descricao;
 
   // Summary
-  let nPend=0, nAgend=0, nPast=0;
-  itens.forEach(m => { const s=statusDe(m,agora); if(s==='past')nPast++; else if(s==='agend')nAgend++; else nPend++; });
+  let nPend=0, nAgend=0, nPast=0, nErro=0;
+  itens.forEach(m => { const s=statusDe(m,agora); if(s==='past')nPast++; else if(s==='agend')nAgend++; else if(s==='erro')nErro++; else nPend++; });
   $('summary').innerHTML = `
     <span class="pill pend">⏳ ${nPend} pendentes</span>
     <span class="pill agend">✅ ${nAgend} agendadas</span>
+    ${nErro ? `<span class="pill" style="background:rgba(239,68,68,.12);color:#991B1B;cursor:pointer" onclick="retentarTodosComErro()">❌ ${nErro} com erro — retentar</span>` : ''}
     ${nPast ? `<span class="pill past">⌛ ${nPast} passaram</span>` : ''}
   `;
 
@@ -397,16 +416,33 @@ function render(){
     $('btn-agendar-todas').disabled = true;
     return;
   }
+  // Mantém na seleção só IDs que ainda são pendentes (poda agendadas/passadas)
+  const pendIds = new Set(lista.filter(m => statusDe(m, agora) === 'pend').map(m => m.id));
+  selecionados.forEach(id => { if (!pendIds.has(id)) selecionados.delete(id); });
+
   cards.innerHTML = lista.map(m => renderCard(m, agora)).join('');
-  $('btn-agendar-todas').disabled = nPend === 0;
-  $('btn-agendar-todas').textContent = nPend ? `🚀 Agendar ${nPend} pendente${nPend===1?'':'s'}` : '🚀 Nada pra agendar';
+  atualizarBarraAgendar(pendIds);
+}
+
+// Atualiza o checkbox "selecionar todas", o label e o botão conforme a seleção.
+function atualizarBarraAgendar(pendIds){
+  const nPendVis = pendIds.size;
+  const nSel = [...selecionados].filter(id => pendIds.has(id)).length;
+  const lbl = $('lbl-sel-todas'), chk = $('chk-sel-todas'), btn = $('btn-agendar-todas');
+  lbl.style.display = nPendVis ? 'flex' : 'none';
+  chk.checked = nPendVis > 0 && nSel === nPendVis;
+  chk.indeterminate = nSel > 0 && nSel < nPendVis;
+  btn.disabled = nPendVis === 0;
+  if (!nPendVis) btn.textContent = '🚀 Nada pra agendar';
+  else if (nSel) btn.textContent = `🚀 Agendar ${nSel} selecionada${nSel===1?'':'s'}`;
+  else btn.textContent = `🚀 Agendar ${nPendVis} pendente${nPendVis===1?'':'s'}`;
 }
 
 function renderCard(m, agora){
   const id = m.id || '';
   const prefixo = (m.prefixo || 'WZ').toUpperCase();
   const status = statusDe(m, agora);
-  const statusTxt = { pend:'⏳ Pendente', agend:'✅ Agendada', past:'⌛ Passou' }[status];
+  const statusTxt = { pend:'⏳ Pendente', agend:'✅ Agendada', past:'⌛ Passou', erro:'❌ Erro' }[status];
 
   let body;
   if (m.tipoAcao === 'renomear_grupo'){
@@ -429,10 +465,14 @@ function renderCard(m, agora){
   }
 
   const podeAgendar = status === 'pend';
+  const ehErro = status === 'erro';
   const ehManual = m.origem === 'manual';
+  const agendErro = ehErro ? agendadoDe(m) : null;
+  const erroBox = agendErro?.erro ? `<div class="erro-box">${esc(agendErro.erro)}</div>` : '';
   return `
     <div class="card ${status}">
       <div class="card-hdr">
+        ${status==='pend' ? `<input type="checkbox" class="sel-chk" onclick="toggleSel('${esc(id)}', this.checked)" ${selecionados.has(id)?'checked':''} title="Selecionar pra agendar" style="width:18px;height:18px;cursor:pointer;flex-shrink:0">` : ''}
         <div class="badge ${prefixo}">${esc(id)}</div>
         <div class="card-meta">
           <div class="dia">${esc(diaSem(m.scheduledTo))}</div>
@@ -440,9 +480,12 @@ function renderCard(m, agora){
         </div>
         <span class="status ${status}">${statusTxt}</span>
       </div>
-      <div class="card-body">${body}</div>
+      <div class="card-body">${body}${erroBox}</div>
       <div class="card-acoes">
-        <button class="btn primary wide" onclick="confirmarAgendar('${esc(id)}')" ${podeAgendar?'':'disabled'}>📅 Agendar agora</button>
+        ${ehErro
+          ? `<button class="btn primary wide" onclick="retentarAgendado('${esc(agendErro?.id || id)}')">🔄 Retentar</button>`
+          : `<button class="btn primary wide" onclick="confirmarAgendar('${esc(id)}')" ${podeAgendar?'':'disabled'}>📅 Agendar agora</button>`
+        }
         <button class="btn sm" onclick="abrirEditarHorario('${esc(id)}')">✏️ Horário</button>
         <button class="btn sm" onclick="abrirEditarTexto('${esc(id)}')">📝 Texto</button>
         ${ehManual ? `<button class="btn sm danger wide" onclick="removerMensagem('${esc(id)}')">🗑️ Remover</button>` : ''}
@@ -586,13 +629,43 @@ window.confirmarAgendar = (id) => {
   );
 };
 
+// Marca/desmarca uma mensagem na seleção em lote.
+window.toggleSel = (id, checked) => {
+  if (checked) selecionados.add(id); else selecionados.delete(id);
+  const agora = Date.now();
+  const pendIds = new Set(itens.filter(m => {
+    if (filtroAtual !== 'all' && (m.tipoAcao || 'enviar_mensagem') !== filtroAtual) return false;
+    return statusDe(m, agora) === 'pend';
+  }).map(m => m.id));
+  atualizarBarraAgendar(pendIds);
+};
+
+// "Selecionar todas pendentes" — marca/desmarca todas as visíveis de uma vez.
+document.getElementById('chk-sel-todas').addEventListener('change', (e) => {
+  const agora = Date.now();
+  const pend = itens.filter(m => {
+    if (filtroAtual !== 'all' && (m.tipoAcao || 'enviar_mensagem') !== filtroAtual) return false;
+    return statusDe(m, agora) === 'pend';
+  });
+  if (e.target.checked) pend.forEach(m => selecionados.add(m.id));
+  else pend.forEach(m => selecionados.delete(m.id));
+  render();
+});
+
 document.getElementById('btn-agendar-todas').addEventListener('click', () => {
   const agora = Date.now();
-  const pend = itens.filter(m => statusDe(m, agora) === 'pend');
+  let pend = itens.filter(m => {
+    if (filtroAtual !== 'all' && (m.tipoAcao || 'enviar_mensagem') !== filtroAtual) return false;
+    return statusDe(m, agora) === 'pend';
+  });
+  // Se há seleção, agenda só as selecionadas; senão, todas as pendentes.
+  const selNaLista = pend.filter(m => selecionados.has(m.id));
+  if (selNaLista.length) pend = selNaLista;
   if (!pend.length) return toast('Nada pra agendar');
   _pendentesIds = pend.map(p => p.id);
-  abrirModal(`📅 Agendar ${pend.length} mensagens`,
-    `<div>Confirmar agendamento de <strong>${pend.length}</strong> ações?</div>
+  const titulo = selNaLista.length ? `📅 Agendar ${pend.length} selecionada${pend.length===1?'':'s'}` : `📅 Agendar ${pend.length} mensagens`;
+  abrirModal(titulo,
+    `<div>Confirmar agendamento de <strong>${pend.length}</strong> ${pend.length===1?'ação':'ações'}?</div>
      <div style="max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px">
        ${pend.map(m => `<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;font-size:12px">
          <span class="badge ${(m.prefixo||'WZ').toUpperCase()}" style="min-width:38px">${esc(m.id)}</span>
@@ -628,10 +701,67 @@ window.executarAgendar = async (ids) => {
   } catch(e){ toast('❌ '+e.message); }
 };
 
+// ─── Retentar agendamentos com erro ─────────────────────────────────
+window.retentarAgendado = async (agendadoId) => {
+  if (!agendadoId) return toast('ID do agendamento não encontrado');
+  try {
+    await api(`/api/wz/agendados/${encodeURIComponent(agendadoId)}/retentar`, { method: 'POST' });
+    toast('🔄 Agendamento resetado — será executado no próximo ciclo');
+    await recarregarItens();
+  } catch(e){ toast('❌ ' + e.message); }
+};
+
+window.retentarTodosComErro = async () => {
+  const comErro = agendadosCache.filter(a => a.status === 'erro');
+  if (!comErro.length) return toast('Nenhum agendamento com erro');
+  toast(`Retentando ${comErro.length} agendamento(s)...`);
+  let ok = 0;
+  for (const a of comErro) {
+    try {
+      await api(`/api/wz/agendados/${encodeURIComponent(a.id)}/retentar`, { method: 'POST' });
+      ok++;
+    } catch {}
+  }
+  toast(`✅ ${ok}/${comErro.length} resetados`);
+  await recarregarItens();
+};
+
+// ─── Status do cron + banner bloqueio ───────────────────────────────
+async function carregarStatusCron() {
+  try {
+    const s = await api('/api/status');
+    const cron = s.wzCron;
+    const tag = $('cron-tag');
+    const banner = $('banner-blocked');
+    if (!cron) return;
+
+    // Cron tag no topbar
+    if (cron.ultimaExec) {
+      const ago = Math.round((Date.now() - new Date(cron.ultimaExec)) / 60000);
+      const label = ago < 2 ? 'agora' : `${ago}min atrás`;
+      tag.textContent = `⚙️ cron ${label}${cron.falhas ? ` · ${cron.falhas} falha(s)` : ''}`;
+      tag.style.display = 'inline-flex';
+      tag.style.color = cron.falhas ? '#92400E' : '';
+      tag.style.background = cron.falhas ? 'rgba(245,158,11,.14)' : '';
+    }
+
+    // Banner de bloqueio
+    if (cron.bloqueadoAte && new Date(cron.bloqueadoAte) > new Date()) {
+      const restante = Math.ceil((new Date(cron.bloqueadoAte) - Date.now()) / 60000);
+      banner.innerHTML = `⚠️ API Sendflow bloqueada — aguardando ${restante} min para desbloqueio. Agendamentos executam automaticamente após isso. <a href="/#visao-geral" style="color:#92400E;font-weight:700;margin-left:8px">🔑 Trocar chave →</a>`;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch {}
+}
+
 // ─── Boot ────────────────────────────────────────────────────────────
 const ridDaUrl = new URLSearchParams(location.search).get('releaseId');
 if (ridDaUrl) ridAtual = ridDaUrl;
 carregarCampanhas();
+carregarStatusCron();
+setInterval(carregarStatusCron, 60000);
 </script>
 </body>
 </html>

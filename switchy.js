@@ -9,44 +9,47 @@ function headers() {
 }
 
 /**
- * Atualiza a URL de destino de um link no Switch.io via GraphQL.
- * Usa domínio para evitar ambiguidade quando o mesmo slug existe em domínios diferentes.
+ * Atualiza a URL de destino de um link via REST API.
+ * Usa PUT /v1/links/by-domain/:domain/:id para evitar ambiguidade.
  * @param {string} linkId  - Slug do link (ex: "webinar-sandwich")
  * @param {string} novaUrl - Nova URL de destino
  * @param {string} domain  - Domínio do link (ex: "link.chefaureomagalhaes.com")
  */
 export async function atualizarDestinoLink(linkId, novaUrl, domain) {
-  const where = domain
-    ? `{ id: { _eq: "${linkId}" }, domain: { _eq: "${domain}" } }`
-    : `{ id: { _eq: "${linkId}" } }`;
+  const endpoint = domain
+    ? `${SWITCHY_BASE_URL}/links/by-domain/${encodeURIComponent(domain)}/${encodeURIComponent(linkId)}`
+    : `${SWITCHY_BASE_URL}/links/${encodeURIComponent(linkId)}`;
 
+  const res = await fetch(endpoint, {
+    method: 'PUT',
+    headers: headers(),
+    body: JSON.stringify({ link: { url: novaUrl } }),
+  });
+
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Switch.io erro ${res.status}: ${text}`);
+
+  let data;
+  try { data = JSON.parse(text); } catch { data = {}; }
+  return data;
+}
+
+/**
+ * Lista links de um domínio (diagnóstico — mostra os campos reais do schema).
+ */
+export async function listarLinks(domain, limit = 10) {
+  const domainFilter = domain ? `, where: { domain: { _ilike: "%${domain}%" } }` : '';
   const res = await fetch('https://graphql.switchy.io/v1/graphql', {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
-      query: `
-        mutation {
-          update_links(
-            where: ${where}
-            _set: { url: "${novaUrl}" }
-          ) { affected_rows returning { id url domain } }
-        }
-      `,
+      query: `query { links(limit: ${limit}${domainFilter}, order_by: { created_at: desc }) { id url domain } }`,
     }),
   });
-
-  if (!res.ok) {
-    const erro = await res.text();
-    throw new Error(`Switch.io erro ${res.status}: ${erro}`);
-  }
-
+  if (!res.ok) throw new Error(`Switch.io erro ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  if (data.errors) throw new Error(`Switch.io GraphQL: ${data.errors[0].message}`);
-
-  const affected = data?.data?.update_links?.affected_rows ?? 0;
-  if (affected === 0) throw new Error(`Switch.io: link "${linkId}" não encontrado`);
-
-  return data.data.update_links.returning[0];
+  if (data.errors) throw new Error(`GraphQL: ${data.errors[0].message}`);
+  return data?.data?.links ?? [];
 }
 
 /**

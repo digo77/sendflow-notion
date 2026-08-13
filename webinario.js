@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cron from 'node-cron';
@@ -11,7 +11,8 @@ import {
 } from './notion.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = join(__dirname, 'config.json');
+const DATA_DIR = join(__dirname, 'data');
+const CONFIG_PATH = join(DATA_DIR, 'config.json');
 const cronTasks = {}; // { [id]: ScheduledTask }
 
 // ─── Config raw ───
@@ -25,6 +26,7 @@ async function lerConfigRaw() {
 }
 
 async function salvarConfigRaw(cfg) {
+  await mkdir(DATA_DIR, { recursive: true });
   await writeFile(CONFIG_PATH, JSON.stringify(cfg, null, 2), 'utf-8');
 }
 
@@ -92,7 +94,7 @@ export async function deletarWebinario(id) {
 // ─── State por cliente ───
 
 function statePath(id) {
-  return join(__dirname, `webinario-state-${id}.json`);
+  return join(DATA_DIR, `webinario-state-${id}.json`);
 }
 
 async function lerEstadoLocal(id) {
@@ -105,7 +107,8 @@ async function lerEstadoLocal(id) {
 
 async function salvarEstadoLocal(id, data, dados) {
   const estado = await lerEstadoLocal(id);
-  estado[data] = dados;
+  estado[data] = { ...estado[data], ...dados };
+  await mkdir(DATA_DIR, { recursive: true });
   await writeFile(statePath(id), JSON.stringify(estado, null, 2), 'utf-8');
 }
 

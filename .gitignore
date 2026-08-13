@@ -4,3 +4,8 @@ logs/
 backups/
 .DS_Store
 _volumes/
+
+# Dados de runtime — nunca sobrescrever no deploy
+data/
+webinario-state-*.json
+config.json

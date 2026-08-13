@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cron from 'node-cron';
-import { readFile } from 'node:fs/promises';
+import crypto from 'node:crypto';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ciclo, executarAcao } from './executor.js';
@@ -15,7 +16,20 @@ import {
   listarWebinarios,
   marcarPushSendflow,
 } from './notion.js';
-import { listarCampanhas as listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease, criarGrupoWebinario, obterCampanha } from './sendflow.js';
+import { listarCampanhas as _listarCampanhasSendflow, enviarMensagemDireta, enviarImagemDireta, atualizarRelease, criarGrupoWebinario, obterCampanha } from './sendflow.js';
+
+// Cache de 2 minutos para listarCampanhasSendflow — evita rate limit
+let _sfCampanhasCache = null;
+let _sfCampanhasCacheAt = 0;
+const SF_CAMPANHAS_TTL = 2 * 60 * 1000;
+async function listarCampanhasSendflow() {
+  const now = Date.now();
+  if (_sfCampanhasCache && (now - _sfCampanhasCacheAt) < SF_CAMPANHAS_TTL) return _sfCampanhasCache;
+  const result = await _listarCampanhasSendflow();
+  _sfCampanhasCache = result;
+  _sfCampanhasCacheAt = now;
+  return result;
+}
 import { runBackup } from './backup.js';
 import {
   lerWebinarios,
@@ -33,8 +47,20 @@ import { sincronizarComNotion, lerCache, salvarCache, salvarConfigUrl, lerConfig
 import { aplicarVariaveis, formatarDataBR } from './wz-variaveis.js';
 import { validarSequencia } from './wz-validar.js';
 import { listarHistorico } from './wz-historico.js';
-import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado, forcarExecucao } from './wz-agendador.js';
-import { testarConexao as testarSwitchy } from './switchy.js';
+import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado, forcarExecucao, retentarAgendado, lerBloqueio } from './wz-agendador.js';
+import { testarConexao as testarSwitchy, listarLinks as listarLinksSwitchy, atualizarDestinoLink } from './switchy.js';
+import {
+  lerEverWebinarios,
+  lerEverWebinario,
+  salvarEverWebinario,
+  criarEverWebinario,
+  deletarEverWebinario,
+  listarLeads,
+  listarSessoes,
+  registrarLead,
+  reenviarConfirmacao,
+  dispararLembretes,
+} from './everwebinar.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -53,6 +79,13 @@ const estado = {
   erros: 0,
 };
 
+const wzCronState = {
+  ultimaExec: null,
+  executadas: 0,
+  falhas: 0,
+  bloqueadoAte: null,
+};
+
 // ─── Middleware de autenticação para o webhook ───
 function verificarSecret(req, res, next) {
   const header = req.headers['x-webhook-secret'];
@@ -63,35 +96,100 @@ function verificarSecret(req, res, next) {
   next();
 }
 
-// ─── Middleware de autenticação Basic Auth para o dashboard e API ───
-// Rotas públicas: /webhook (tem x-webhook-secret), /health, /img/*
+// ─── Sessão por cookie assinado (HMAC) — login persistente de 30 dias ───
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_COOKIE = 'sf_session';
+function sessionSecret() {
+  // Deriva o segredo das credenciais — muda a senha, invalida sessões antigas.
+  return `${DASH_PASS || ''}::${DASH_USER || ''}::sf-session-v1`;
+}
+function assinarSessao(expMs) {
+  const data = String(expMs);
+  const sig = crypto.createHmac('sha256', sessionSecret()).update(data).digest('hex');
+  return `${data}.${sig}`;
+}
+function sessaoValida(token) {
+  if (!token || typeof token !== 'string') return false;
+  const idx = token.indexOf('.');
+  if (idx < 0) return false;
+  const data = token.slice(0, idx);
+  const sig = token.slice(idx + 1);
+  const exp = parseInt(data, 10);
+  if (!Number.isFinite(exp) || Date.now() > exp) return false;
+  const esperado = crypto.createHmac('sha256', sessionSecret()).update(data).digest('hex');
+  if (sig.length !== esperado.length) return false;
+  try { return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(esperado)); } catch { return false; }
+}
+function lerCookies(req) {
+  const out = {};
+  (req.headers.cookie || '').split(';').forEach((p) => {
+    const i = p.indexOf('=');
+    if (i > 0) out[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim());
+  });
+  return out;
+}
+function setCookieSessao(res) {
+  const exp = Date.now() + SESSION_TTL_MS;
+  const token = assinarSessao(exp);
+  res.set('Set-Cookie',
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`);
+}
+
+// ─── Middleware de autenticação (cookie de sessão OU Basic Auth) ───
+// Rotas públicas: /webhook (x-webhook-secret), /health, /img/*, /login, /api/login
 function requireDashAuth(req, res, next) {
   // Se DASHBOARD_USER/PASSWORD não definidos, desabilita auth (dev local)
   if (!DASH_USER || !DASH_PASS) return next();
 
-  const rotasPublicas = ['/webhook', '/health'];
-  if (rotasPublicas.includes(req.path) || req.path.startsWith('/img/')) {
+  const rotasPublicas = ['/webhook', '/health', '/sala', '/inscrever', '/login', '/api/login'];
+  const isEwPublic = (req.path.startsWith('/api/everwebinar/') && req.path.endsWith('/public'))
+    || req.path.match(/^\/api\/everwebinar\/[^/]+\/registrar$/);
+  if (rotasPublicas.includes(req.path) || req.path.startsWith('/img/') || isEwPublic) {
     return next();
   }
 
+  // 1) Cookie de sessão (caminho normal — login persistente)
+  const cookies = lerCookies(req);
+  if (sessaoValida(cookies[SESSION_COOKIE])) return next();
+
+  // 2) Basic Auth (compatibilidade — chamadas de API externas/scripts)
   const header = req.headers.authorization || '';
   const [scheme, creds] = header.split(' ');
   if (scheme === 'Basic' && creds) {
     try {
       const decoded = Buffer.from(creds, 'base64').toString('utf-8');
       const sep = decoded.indexOf(':');
-      const user = decoded.slice(0, sep);
-      const pass = decoded.slice(sep + 1);
-      if (user === DASH_USER && pass === DASH_PASS) return next();
+      if (decoded.slice(0, sep) === DASH_USER && decoded.slice(sep + 1) === DASH_PASS) return next();
     } catch {}
   }
 
-  res.set('WWW-Authenticate', 'Basic realm="Sendflow-Notion Dashboard", charset="UTF-8"');
-  return res.status(401).send('Autenticação necessária.');
+  // Navegação no browser → manda pra tela de login. API → 401 JSON.
+  const querHtml = (req.headers.accept || '').includes('text/html');
+  if (querHtml && req.method === 'GET') return res.redirect(302, '/login');
+  return res.status(401).json({ error: 'Não autenticado' });
 }
 
 // Aplica auth globalmente (antes das rotas)
 app.use(requireDashAuth);
+
+// ─── Login / Logout ───
+app.get('/login', (_req, res) => {
+  res.sendFile(join(__dirname, 'login.html'));
+});
+
+app.post('/api/login', (req, res) => {
+  const { user, pass } = req.body || {};
+  if (user === DASH_USER && pass === DASH_PASS) {
+    setCookieSessao(res);
+    return res.json({ ok: true });
+  }
+  return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+});
+
+app.post('/api/logout', (_req, res) => {
+  res.set('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0`);
+  res.json({ ok: true });
+});
 
 // ─── POST /webhook ───
 app.post('/webhook', verificarSecret, async (req, res) => {
@@ -128,7 +226,40 @@ app.get('/api/status', (_req, res) => {
     pendentesAprovacao: pendentes.size,
     account: process.env.SENDFLOW_ACCOUNT_ID,
     numero: process.env.SENDFLOW_NUMBER,
+    wzCron: wzCronState,
   });
+});
+
+// ─── Config: chave API Sendflow ───────────────────────────────────────────
+const KEY_FILE = join(__dirname, 'data', 'sendflow-key.json');
+
+app.get('/api/config/sendflow-key', async (_req, res) => {
+  try {
+    let key = null;
+    try { key = JSON.parse(await readFile(KEY_FILE, 'utf-8')).key; } catch {}
+    const active = key || process.env.SENDFLOW_API_TOKEN || '';
+    const masked = active.length > 8 ? active.slice(0, 8) + '…' + active.slice(-4) : '(não configurada)';
+    res.json({ temOverride: !!key, masked });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/config/sendflow-key', async (req, res) => {
+  try {
+    const { key } = req.body || {};
+    if (!key || key.trim().length < 10) return res.status(400).json({ error: 'Chave inválida' });
+    const { mkdir: mkdirFs } = await import('node:fs/promises');
+    await mkdirFs(dirname(KEY_FILE), { recursive: true });
+    await writeFile(KEY_FILE, JSON.stringify({ key: key.trim() }), 'utf-8');
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/config/sendflow-key', async (_req, res) => {
+  try {
+    const { unlink } = await import('node:fs/promises');
+    await unlink(KEY_FILE).catch(() => {});
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/agendamentos', async (_req, res) => {
@@ -401,8 +532,32 @@ app.post('/api/webinario/:id/executar', async (req, res) => {
 
 app.post('/api/webinario/:id/testar-switchy', async (req, res) => {
   try {
-    const workspaces = await testarSwitchy();
-    res.json({ ok: true, workspaces });
+    const cfg = await lerWebinario(req.params.id);
+    const [workspaces, links] = await Promise.allSettled([
+      testarSwitchy(),
+      cfg?.switchy_domain ? listarLinksSwitchy(cfg.switchy_domain) : Promise.resolve([]),
+    ]);
+    res.json({
+      ok: workspaces.status === 'fulfilled',
+      workspaces: workspaces.value ?? [],
+      links: links.value ?? [],
+      linkId: cfg?.switchy_link_id || null,
+      domain: cfg?.switchy_domain || null,
+      error: workspaces.reason?.message,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/webinario/:id/retentar-switchy', async (req, res) => {
+  try {
+    const { linkGrupo } = req.body || {};
+    if (!linkGrupo) return res.status(400).json({ error: 'linkGrupo obrigatório' });
+    const cfg = await lerWebinario(req.params.id);
+    if (!cfg?.switchy_link_id) return res.status(400).json({ error: 'switchy_link_id não configurado neste webinário' });
+    const resultado = await atualizarDestinoLink(cfg.switchy_link_id, linkGrupo, cfg.switchy_domain);
+    res.json({ ok: true, resultado });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -795,6 +950,16 @@ app.post('/api/wz/agendados/limpar', async (_req, res) => {
   }
 });
 
+// Reseta agendamento com erro para pendente (retry)
+app.post('/api/wz/agendados/:id/retentar', async (req, res) => {
+  try {
+    const entrada = await retentarAgendado(req.params.id);
+    res.json({ ok: true, entrada });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Força execução imediata de um agendamento pendente (pra teste)
 app.post('/api/wz/agendados/:id/executar', async (req, res) => {
   try {
@@ -1022,6 +1187,98 @@ app.post('/api/wz/agendar', async (req, res) => {
   }
 });
 
+// ─── EverWebinar ───
+
+app.get('/api/everwebinar', async (_req, res) => {
+  try { res.json(await lerEverWebinarios()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/everwebinar', async (req, res) => {
+  try {
+    const id = await criarEverWebinario(req.body);
+    res.json({ ok: true, id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/everwebinar/:id/config', async (req, res) => {
+  try {
+    const cfg = await lerEverWebinario(req.params.id);
+    if (!cfg) return res.status(404).json({ error: 'Não encontrado' });
+    res.json(cfg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/everwebinar/:id/config', async (req, res) => {
+  try {
+    await salvarEverWebinario(req.params.id, req.body);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/everwebinar/:id', async (req, res) => {
+  try {
+    await deletarEverWebinario(req.params.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Endpoint público (sem auth) — usado pela sala e pela página de inscrição
+app.get('/api/everwebinar/:id/public', async (req, res) => {
+  try {
+    const cfg = await lerEverWebinario(req.params.id);
+    if (!cfg) return res.status(404).json({ error: 'Não encontrado' });
+    res.json({
+      nome_cliente: cfg.nome_cliente || '',
+      horario: cfg.horario || '20:00',
+      duracao_minutos: cfg.duracao_minutos || 90,
+      vturb_player_url: cfg.vturb_player_url || '',
+      ativo: cfg.ativo || false,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Registro de lead (público — chamado pela página de inscrição ou webhook futuro)
+app.post('/api/everwebinar/:id/registrar', async (req, res) => {
+  try {
+    const resultado = await registrarLead(req.params.id, req.body);
+    res.json(resultado);
+  } catch (err) {
+    console.error('[EverWebinar] Registro falhou:', err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/everwebinar/:id/leads', async (req, res) => {
+  try {
+    const leads = await listarLeads(req.params.id, { data: req.query.data });
+    res.json(leads);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/everwebinar/:id/sessoes', async (req, res) => {
+  try {
+    res.json(await listarSessoes(req.params.id));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/everwebinar/:id/reenviar/:leadId', async (req, res) => {
+  try {
+    const r = await reenviarConfirmacao(req.params.id, req.params.leadId);
+    res.json(r);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ─── Páginas públicas EverWebinar ───
+
+app.get('/sala', (_req, res) => {
+  res.sendFile(join(__dirname, 'sala.html'));
+});
+
+app.get('/inscrever', (_req, res) => {
+  res.sendFile(join(__dirname, 'inscricao.html'));
+});
+
 // ─── Proxy de imagens (para URLs sem extensão, ex: ImageKit) ───
 // Sendflow exige extensão no caminho da URL (ex: .jpg). Este proxy serve
 // imagens de qualquer origem com um path terminado em .jpg.
@@ -1104,10 +1361,28 @@ cron.schedule('0 0 * * *', () => {
   runBackup().catch((err) => console.error('[Cron] Erro no backup:', err.message));
 });
 
+// ─── Cron: lembretes EverWebinar (a cada minuto) ───
+cron.schedule('* * * * *', async () => {
+  try { await dispararLembretes(); } catch (err) { console.error('[Cron EverWebinar] Erro:', err.message); }
+});
+
 // ─── Cron: dispara renames e descrições agendados (a cada minuto) ───
 cron.schedule('* * * * *', async () => {
+  // Respeita bloqueio persistido em disco (sobrevive a restarts)
+  const bloqDisco = await lerBloqueio();
+  if (bloqDisco) { wzCronState.bloqueadoAte = bloqDisco; return; }
+  if (wzCronState.bloqueadoAte && new Date(wzCronState.bloqueadoAte) > new Date()) return;
   try {
     const r = await executarPendentes();
+    wzCronState.ultimaExec = new Date().toISOString();
+    wzCronState.executadas = r.executadas;
+    wzCronState.falhas = r.falhas;
+    if (r.bloqueadoAte) {
+      wzCronState.bloqueadoAte = r.bloqueadoAte;
+      console.warn(`[Cron WZ-Agendador] ⛔ API bloqueada até ${r.bloqueadoAte} — cron pausado`);
+    } else if (wzCronState.bloqueadoAte && new Date(wzCronState.bloqueadoAte) < new Date()) {
+      wzCronState.bloqueadoAte = null;
+    }
     if (r.executadas > 0 || r.falhas > 0) {
       console.log(`[Cron WZ-Agendador] ${r.executadas} executadas, ${r.falhas} falhas`);
     }

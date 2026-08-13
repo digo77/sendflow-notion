@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sala do Webinário</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #fff;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+/* ─── Header ─── */
+.header {
+  width: 100%;
+  background: #111;
+  border-bottom: 1px solid #222;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.header-title { font-size: 15px; font-weight: 600; color: #e5e7eb; }
+.header-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+.header-badge .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse 2s infinite;
+}
+.header-badge.ao-vivo { border-color: #ef444455; }
+.header-badge.ao-vivo .dot { background: #ef4444; }
+.header-badge.encerrado .dot { background: #6b7280; animation: none; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ─── Conteúdo central ─── */
+.wrap {
+  width: 100%;
+  max-width: 900px;
+  padding: 28px 20px 60px;
+  flex: 1;
+}
+
+/* ─── Player ─── */
+.player-container {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #222, 0 20px 60px rgba(0,0,0,.6);
+  background: #000;
+}
+
+/* ─── Countdown ─── */
+.countdown-box {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  max-width: 520px;
+  margin: 60px auto 0;
+}
+.countdown-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6b7280;
+  margin-bottom: 32px;
+}
+.countdown-digits {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 72px;
+}
+.countdown-number {
+  font-size: 52px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #fff;
+  background: #1c1c1c;
+  border-radius: 10px;
+  padding: 12px 14px;
+  width: 80px;
+  text-align: center;
+}
+.countdown-sep {
+  font-size: 40px;
+  font-weight: 700;
+  color: #374151;
+  align-self: center;
+  margin-bottom: 24px;
+}
+.countdown-unit-label {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.countdown-info {
+  font-size: 14px;
+  color: #9ca3af;
+  line-height: 1.6;
+}
+.countdown-hora {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+/* ─── Encerrado ─── */
+.encerrado-box {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 16px;
+  padding: 60px 40px;
+  text-align: center;
+  max-width: 480px;
+  margin: 60px auto 0;
+}
+.encerrado-icon { font-size: 48px; margin-bottom: 20px; }
+.encerrado-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+.encerrado-sub { font-size: 14px; color: #9ca3af; line-height: 1.6; }
+
+/* ─── Loading ─── */
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 20px;
+  color: #6b7280;
+  font-size: 14px;
+}
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #222;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 480px) {
+  .countdown-number { font-size: 38px; width: 64px; padding: 10px; }
+  .countdown-digits { gap: 8px; }
+  .countdown-sep { font-size: 30px; }
+  .wrap { padding: 20px 12px 40px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title" id="event-title">Carregando...</div>
+  <div class="header-badge" id="status-badge">
+    <div class="dot"></div>
+    <span id="status-text">Aguardando</span>
+  </div>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <span>Preparando sua sala...</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ─── Pega parâmetros da URL ───
+  const params = new URLSearchParams(location.search);
+  const ewId = params.get('ew');
+  const sParam = params.get('s'); // formato: 2025-05-21T20:00
+
+  if (!ewId || !sParam) {
+    document.getElementById('wrap').innerHTML = `
+      <div class="encerrado-box">
+        <div class="encerrado-icon">⚠️</div>
+        <div class="encerrado-title">Link inválido</div>
+        <div class="encerrado-sub">Este link está incompleto. Verifique o link recebido.</div>
+      </div>`;
+    return;
+  }
+
+  // Parse da sessão: "2025-05-21T20:00"
+  const [datePart, timePart] = sParam.split('T');
+  const [hora, minuto] = (timePart || '20:00').split(':').map(Number);
+  const [ano, mes, dia] = datePart.split('-').map(Number);
+  // Cria timestamp em São Paulo (UTC-3)
+  const sessaoTimestamp = Date.UTC(ano, mes - 1, dia, hora + 3, minuto, 0, 0);
+
+  let ewConfig = null;
+  let playerInjetado = false;
+
+  // ─── Carrega config pública do EverWebinário ───
+  fetch(`/api/everwebinar/${ewId}/public`)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(cfg => {
+      ewConfig = cfg;
+      document.getElementById('event-title').textContent = cfg.nome_cliente || 'Webinário';
+      tick();
+      setInterval(tick, 1000);
+    })
+    .catch(() => {
+      document.getElementById('wrap').innerHTML = `
+        <div class="encerrado-box">
+          <div class="encerrado-icon">😕</div>
+          <div class="encerrado-title">Evento não encontrado</div>
+          <div class="encerrado-sub">Verifique se o link está correto ou entre em contato com o suporte.</div>
+        </div>`;
+    });
+
+  // ─── Atualiza estado a cada segundo ───
+  function tick() {
+    if (!ewConfig) return;
+    const agora = Date.now();
+    const offsetMs = agora - sessaoTimestamp;
+    const offsetSeg = Math.floor(offsetMs / 1000);
+    const duracaoSeg = (ewConfig.duracao_minutos || 90) * 60;
+
+    if (offsetMs < 0) {
+      // Ainda não começou
+      renderCountdown(-offsetMs);
+      setBadge('aguardando', 'Aguardando início');
+    } else if (offsetSeg <= duracaoSeg) {
+      // Está no ar
+      setBadge('ao-vivo', '● Ao vivo');
+      if (!playerInjetado) {
+        playerInjetado = true;
+        renderPlayer(offsetSeg);
+      }
+    } else {
+      // Encerrou
+      setBadge('encerrado', 'Encerrado');
+      if (!document.getElementById('encerrado-box')) {
+        renderEncerrado();
+      }
+    }
+  }
+
+  // ─── Renderiza countdown ───
+  function renderCountdown(msRestantes) {
+    const wrap = document.getElementById('wrap');
+
+    const totalSeg = Math.floor(msRestantes / 1000);
+    const h = Math.floor(totalSeg / 3600);
+    const m = Math.floor((totalSeg % 3600) / 60);
+    const s = totalSeg % 60;
+
+    const pad = n => String(n).padStart(2, '0');
+    const horaFmt = `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
+    const dataFmt = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+
+    // Se já existe o box, só atualiza os números
+    if (document.getElementById('cd-h')) {
+      document.getElementById('cd-h').textContent = pad(h);
+      document.getElementById('cd-m').textContent = pad(m);
+      document.getElementById('cd-s').textContent = pad(s);
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="countdown-box">
+        <div class="countdown-label">O webinário começa em</div>
+        <div class="countdown-digits">
+          <div class="countdown-unit">
+            <div class="countdown-number" id="cd-h">${pad(h)}</div>
+            <div class="countdown-unit-label">Horas</div>
+          </div>
+          <div class="countdown-sep">:</div>
+          <div class="countdown-unit">
+            <div class="countdown-number" id="cd-m">${pad(m)}</div>
+            <div class="countdown-unit-label">Minutos</div>
+          </div>
+          <div class="countdown-sep">:</div>
+          <div class="countdown-unit">
+            <div class="countdown-number" id="cd-s">${pad(s)}</div>
+            <div class="countdown-unit-label">Segundos</div>
+          </div>
+        </div>
+        <div class="countdown-hora">${horaFmt}h</div>
+        <div class="countdown-info">
+          Hoje, ${dataFmt} às ${horaFmt}h<br>
+          Mantenha esta página aberta — o vídeo iniciará automaticamente.
+        </div>
+      </div>`;
+  }
+
+  // ─── Renderiza player VTurb ───
+  function renderPlayer(offsetSeg) {
+    const wrap = document.getElementById('wrap');
+    const playerUrl = ewConfig.vturb_player_url || '';
+
+    // Extrai o Player ID da URL
+    const match = playerUrl.match(/\/players\/([^/]+)\/player\.js/);
+    const playerId = match ? match[1] : null;
+
+    if (!playerUrl || !playerId) {
+      wrap.innerHTML = `
+        <div class="encerrado-box">
+          <div class="encerrado-icon">🎬</div>
+          <div class="encerrado-title">Player não configurado</div>
+          <div class="encerrado-sub">O administrador ainda não configurou o player de vídeo.</div>
+        </div>`;
+      return;
+    }
+
+    // Container VTurb (precisa estar no DOM antes do script carregar)
+    wrap.innerHTML = `
+      <div class="player-container">
+        <div id="vid_${playerId}" style="position:relative;width:100%;padding:56.25% 0 0">
+          <div id="backdrop_${playerId}" style="position:absolute;top:0;width:100%;height:100%;backdrop-filter:blur(5px)"></div>
+        </div>
+      </div>`;
+
+    // Escuta o evento de player criado para fazer o seek
+    if (offsetSeg > 3) {
+      document.addEventListener('playersdk-instance-created', function onPlayerCreated(e) {
+        document.removeEventListener('playersdk-instance-created', onPlayerCreated);
+        const player = e.detail;
+        setTimeout(() => {
+          try {
+            player.setCurrentTime(offsetSeg);
+            player.play();
+          } catch (_) {}
+        }, 600);
+      });
+
+      // Fallback: polling caso o evento já tenha disparado
+      let tentativas = 0;
+      const checkPlayer = setInterval(() => {
+        tentativas++;
+        if (tentativas > 30) { clearInterval(checkPlayer); return; }
+        try {
+          if (window.smartplayer && window.smartplayer.instances && window.smartplayer.instances.length) {
+            const p = window.smartplayer.instances[0];
+            if (typeof p.setCurrentTime === 'function') {
+              p.setCurrentTime(offsetSeg);
+              clearInterval(checkPlayer);
+            }
+          }
+        } catch (_) {}
+      }, 500);
+    }
+
+    // Injeta o script do VTurb
+    const script = document.createElement('script');
+    script.src = playerUrl;
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
+  // ─── Renderiza encerrado ───
+  function renderEncerrado() {
+    const horaFmt = `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
+    // Calcula próxima sessão (amanhã no mesmo horário)
+    const amanha = new Date(sessaoTimestamp);
+    amanha.setDate(amanha.getDate() + 1);
+    const dd = String(amanha.getDate()).padStart(2, '0');
+    const mm = String(amanha.getMonth() + 1).padStart(2, '0');
+
+    document.getElementById('wrap').innerHTML = `
+      <div class="encerrado-box" id="encerrado-box">
+        <div class="encerrado-icon">🎓</div>
+        <div class="encerrado-title">Webinário encerrado</div>
+        <div class="encerrado-sub">
+          O evento de hoje já terminou.<br><br>
+          A próxima aula acontece <strong>amanhã, ${dd}/${mm} às ${horaFmt}h</strong>.<br><br>
+          Cadastre-se para receber o link no seu WhatsApp.
+        </div>
+      </div>`;
+  }
+
+  // ─── Atualiza badge de status ───
+  function setBadge(tipo, texto) {
+    const badge = document.getElementById('status-badge');
+    const span = document.getElementById('status-text');
+    badge.className = 'header-badge ' + tipo;
+    span.textContent = texto;
+  }
+})();
+</script>
+</body>
+</html>
