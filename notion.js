@@ -91,11 +91,19 @@ export async function buscarTodosAgendamentos() {
  * Busca todas as campanhas.
  */
 export async function buscarCampanhas() {
-  const res = await notion.databases.query({
-    database_id: DB_CAMPANHAS,
-    page_size: 100,
-  });
-  return res.results.map((page) => {
+  let results = [];
+  let cursor;
+  do {
+    const res = await notion.databases.query({
+      database_id: DB_CAMPANHAS,
+      page_size: 100,
+      start_cursor: cursor,
+    });
+    results = results.concat(res.results);
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+
+  return results.map((page) => {
     const p = page.properties;
     return {
       id: page.id,
@@ -108,6 +116,7 @@ export async function buscarCampanhas() {
       descricaoGrupo: p['Descrição do Grupo']?.rich_text?.[0]?.plain_text || '',
       fotoUrl: p['Foto URL']?.url || '',
       ultimoPush: p['Último Push Sendflow']?.date?.start || null,
+      posicaoSendflow: p['Posição Sendflow']?.number ?? null,
       createdTime: page.created_time,
       notionUrl: page.url,
     };
@@ -173,6 +182,9 @@ export async function sincronizarCampanhas(campanhasSendflow) {
     };
     if (instancia) {
       baseProps['Instância'] = { select: { name: instancia } };
+    }
+    if (typeof sf.position === 'number') {
+      baseProps['Posição Sendflow'] = { number: sf.position };
     }
 
     if (existente) {

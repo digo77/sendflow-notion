@@ -271,11 +271,33 @@ app.get('/api/agendamentos', async (_req, res) => {
   }
 });
 
+// Extrai "DD.MM" ou "DD/MM" do nome da campanha (ex: "Aula 19.08 às 20h") e devolve "MM.DD" pra ordenar.
+// Sem ano no nome — serve só como aproximação de recência dentro do calendário, não cronologia exata entre anos.
+function extrairDataDoNome(nome) {
+  const m = String(nome || '').match(/\b(\d{1,2})[.\/](\d{1,2})\b/);
+  if (!m) return null;
+  const dia = m[1].padStart(2, '0');
+  const mes = m[2].padStart(2, '0');
+  if (Number(mes) > 12 || Number(dia) > 31) return null;
+  return `${mes}.${dia}`;
+}
+
 app.get('/api/campanhas', async (_req, res) => {
   try {
     const data = await buscarCampanhas();
-    // Mais recente primeiro (por createdTime do Notion)
-    data.sort((a, b) => (b.createdTime || '').localeCompare(a.createdTime || ''));
+    // Mais recente primeiro: 1) data extraída do nome, quando existe; 2) posição do Sendflow como aproximação
+    // (mais negativo = mais recente, a julgar pelo padrão observado); 3) createdTime do Notion como último recurso.
+    data.sort((a, b) => {
+      const da = extrairDataDoNome(a.nome);
+      const db = extrairDataDoNome(b.nome);
+      if (da && db && da !== db) return db.localeCompare(da);
+      if (da && !db) return -1;
+      if (!da && db) return 1;
+      if (typeof a.posicaoSendflow === 'number' && typeof b.posicaoSendflow === 'number' && a.posicaoSendflow !== b.posicaoSendflow) {
+        return a.posicaoSendflow - b.posicaoSendflow;
+      }
+      return (b.createdTime || '').localeCompare(a.createdTime || '');
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });

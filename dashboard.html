@@ -391,7 +391,7 @@ tr:hover td { background: var(--surface2); }
     <div class="icon">🎙️</div>
     <span>Webinário</span>
   </div>
-  <div class="nav-item" data-tab="everwebinar">
+  <div class="nav-item" data-tab="everwebinar" style="display:none">
     <div class="icon">🎬</div>
     <span>EverWebinar</span>
   </div>
@@ -826,6 +826,15 @@ tr:hover td { background: var(--surface2); }
     <!-- Lista de campanhas (cards isolados) -->
     <div id="wz-campanhas-lista">
       <div class="loading-overlay" style="position:static;padding:40px"><div class="spinner"></div> Carregando campanhas...</div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="table-header">
+        <h3>Histórico</h3>
+      </div>
+      <div id="wz-historico-lista">
+        <div class="loading-overlay" style="position:static;padding:40px"><div class="spinner"></div> Carregando...</div>
+      </div>
     </div>
 
     <style>
@@ -1674,12 +1683,8 @@ function renderTabelaCampanhas() {
     el.innerHTML = '<div class="empty">Nenhuma campanha encontrada.<br><br><button class="btn btn-primary" onclick="syncCampanhas()">🔄 Sincronizar do Sendflow</button></div>';
     return;
   }
-  // Ordena por data de criação no Notion (mais recente primeiro)
-  const sorted = [...campanhas].sort((a, b) => {
-    const da = new Date(a.createdTime || a.ultimaSync || 0).getTime();
-    const db = new Date(b.createdTime || b.ultimaSync || 0).getTime();
-    return db - da;
-  });
+  // Já vem ordenada do servidor (/api/campanhas)
+  const sorted = campanhas;
   el.innerHTML = `<table>
     <thead><tr>
       <th>Nome</th>
@@ -2136,13 +2141,8 @@ async function wzCarregarCampanhas() {
     wzCampanhasConfig = {};
     (configs || []).forEach(c => { wzCampanhasConfig[c.releaseId] = c; });
 
-    wzCampanhas = (campanhas || [])
-      .filter(c => !c.status || c.status === 'ativa')
-      .sort((a, b) => {
-        const da = new Date(a.createdTime || a.ultimaSync || 0).getTime();
-        const db = new Date(b.createdTime || b.ultimaSync || 0).getTime();
-        return db - da;
-      });
+    // Já vem ordenada do servidor (/api/campanhas) — só filtra as ativas, mantendo a ordem.
+    wzCampanhas = (campanhas || []).filter(c => !c.status || c.status === 'ativa');
 
     if (!wzCampanhas.length) {
       container.innerHTML = '<div class="empty" style="padding:40px">Nenhuma campanha ativa. Clique em "➕ Nova campanha" pra criar uma.</div>';
