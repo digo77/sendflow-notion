@@ -141,26 +141,42 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
       continue;
     }
 
+    // Data e hora de envio do texto — alguns segundos depois da mídia, pra
+    // garantir a ordem (mídia sem legenda primeiro, texto puro em seguida)
+    // mesmo quando o Sendflow processa ações agendadas pro mesmo horário
+    // fora de ordem.
+    const atTexto = new Date(new Date(at).getTime() + 3000).toISOString();
+
     try {
-      let res;
+      let res, resTexto;
       if (wz.tipo === 'video' && wz.imageUrl) {
         res = await agendarMensagemVideo({
           releaseId,
           accountId,
           videoUrl: urlParaSendflow(wz.imageUrl, 'video'),
-          caption: textoFinal,
+          caption: '',
           scheduledTo: at,
           shippingSpeed: 'none',
         });
+        if (textoFinal) {
+          resTexto = await agendarMensagemTexto({
+            releaseId, accountId, mensagem: textoFinal, scheduledTo: atTexto, shippingSpeed: 'none',
+          });
+        }
       } else if (wz.tipo === 'imagem' && wz.imageUrl) {
         res = await agendarMensagemImagem({
           releaseId,
           accountId,
           imageUrl: urlParaSendflow(wz.imageUrl, 'imagem'),
-          caption: textoFinal,
+          caption: '',
           scheduledTo: at,
           shippingSpeed: 'none',
         });
+        if (textoFinal) {
+          resTexto = await agendarMensagemTexto({
+            releaseId, accountId, mensagem: textoFinal, scheduledTo: atTexto, shippingSpeed: 'none',
+          });
+        }
       } else {
         res = await agendarMensagemTexto({
           releaseId,
@@ -170,7 +186,10 @@ export async function agendarSequenciaWZ({ releaseId, accountId, dataWebinario, 
           shippingSpeed: 'none',
         });
       }
-      resultados.push({ id: wz.id, prefixo: wz.prefixo || 'WZ', tipoAcao, ok: true, actionId: res.data?.actionId, scheduledTo: at });
+      resultados.push({
+        id: wz.id, prefixo: wz.prefixo || 'WZ', tipoAcao, ok: true,
+        actionId: res.data?.actionId, actionIdTexto: resTexto?.data?.actionId, scheduledTo: at,
+      });
     } catch (err) {
       const erro = err.response
         ? `HTTP ${err.response.status}: ${JSON.stringify(err.response.data)}`
