@@ -14,29 +14,39 @@ const CONFIG_PATH = join(__dirname, 'data', 'wz-config.json');
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
-// ─── Mapeamento dia da semana → offset relativo à terça do webinário ──────
-// Há dois mapas: o PRE (dias ANTES da terça do webinário) e o POS (dias
-// DEPOIS). Usamos o mapa PRE por padrão, mas se já passamos pela terça
-// dentro de uma mesma fase, os próximos dias usam o mapa POS.
-const DIA_OFFSET_PRE = {
-  Quarta: -6, Qua: -6,
-  Quinta: -5, Qui: -5,
-  Sexta: -4,  Sex: -4,
-  Sábado: -3, Sabado: -3, Sáb: -3, Sab: -3,
-  Domingo: -2, Dom: -2,
-  Segunda: -1, Seg: -1,
-  Terça: 0, Terca: 0, Ter: 0,
+// ─── Mapeamento dia da semana → offset relativo ao dia da aula ────────────
+// O dia de referência (âncora) NÃO é sempre terça — é o dia da semana real
+// da aula (dataWebinario da campanha). Os offsets são calculados na hora,
+// a partir do índice do dia (Dom=0 ... Sáb=6), pra funcionar com qualquer
+// âncora (terça, quarta, etc).
+const DIA_INDEX = {
+  Domingo: 0, Dom: 0,
+  Segunda: 1, Seg: 1,
+  Terça: 2, Terca: 2, Ter: 2,
+  Quarta: 3, Qua: 3,
+  Quinta: 4, Qui: 4,
+  Sexta: 5,  Sex: 5,
+  Sábado: 6, Sabado: 6, Sáb: 6, Sab: 6,
 };
 
-const DIA_OFFSET_POS = {
-  Terça: 0, Terca: 0, Ter: 0,
-  Quarta: 1, Qua: 1,
-  Quinta: 2, Qui: 2,
-  Sexta: 3,  Sex: 3,
-  Sábado: 4, Sabado: 4, Sáb: 4, Sab: 4,
-  Domingo: 5, Dom: 5,
-  Segunda: 6, Seg: 6,
-};
+// Constrói os mapas PRE (dias ANTES da âncora) e POS (dias DEPOIS) pra um
+// dia-âncora qualquer. Usamos o mapa PRE por padrão, mas se já passamos
+// pela âncora dentro de uma mesma fase, os próximos dias usam o mapa POS.
+function construirOffsetMaps(diaAncora) {
+  const ancoraIdx = DIA_INDEX[diaAncora] ?? DIA_INDEX['Terça'];
+  const pre = {};
+  const pos = {};
+  for (const [nome, idx] of Object.entries(DIA_INDEX)) {
+    if (idx === ancoraIdx) {
+      pre[nome] = 0;
+      pos[nome] = 0;
+    } else {
+      pos[nome] = (idx - ancoraIdx + 7) % 7;
+      pre[nome] = pos[nome] - 7;
+    }
+  }
+  return { pre, pos };
+}
 
 // Mapeamento prefixo → tipoAcao
 const PREFIXO_TIPO_ACAO = {
@@ -246,7 +256,11 @@ function traduzirErroNotion(err, pageId) {
 }
 
 // ─── Parser principal ─────────────────────────────────────────────────────
-export async function importarSequenciaDoNotion(urlOrId) {
+// diaAncora: nome do dia da semana da aula (ex: "Quarta") — determina a
+// partir de qual dia os offsets "antes/depois" são calculados. Default
+// "Terça" mantém compatibilidade com campanhas sem data configurada ainda.
+export async function importarSequenciaDoNotion(urlOrId, diaAncora) {
+  const { pre: DIA_OFFSET_PRE, pos: DIA_OFFSET_POS } = construirOffsetMaps(diaAncora || 'Terça');
   const pageId = extractPageId(urlOrId);
   if (!pageId) throw new Error('URL/ID do Notion inválido — cole a URL completa da página (https://www.notion.so/...)');
 
@@ -270,9 +284,9 @@ export async function importarSequenciaDoNotion(urlOrId) {
   const mensagens = [];
   const ignorados = []; // {texto, motivo} pros H2 que não casaram
   let atual = null;
-  // Dentro de cada fase (WZ/RN/DS/IN), tracka se já passamos pela Terça
+  // Dentro de cada fase (WZ/RN/DS/IN), tracka se já passamos pelo dia-âncora
   // pra decidir se os próximos dias usam PRE ou POS do offset.
-  let fasePassouTerca = { WZ: false, RN: false, DS: false, DC: false, IN: false };
+  let fasePassouAncora = { WZ: false, RN: false, DS: false, DC: false, IN: false };
   // Contador pra auto-numerar itens sem número explícito (ex: "RN · Domingo · 09h")
   const autoContador = { WZ: 0, RN: 0, DS: 0, DC: 0, IN: 0 };
   // Data fixa da seção atual (ex: cabeçalho "📆 SEGUNDA (08/06)"). Quando presente,
@@ -369,13 +383,13 @@ export async function importarSequenciaDoNotion(urlOrId) {
     const labelMatch = mAny ? (mAny[6] || '') : m[4];
 
     let offset;
-    const isTerca = ['Terça', 'Terca', 'Ter'].includes(dia);
+    const isDiaAncora = DIA_INDEX[dia] === (DIA_INDEX[diaAncora] ?? DIA_INDEX['Terça']);
     if (prefixo === 'IN') {
       offset = DIA_OFFSET_POS[dia];
-      if (isTerca) fasePassouTerca.IN = true;
+      if (isDiaAncora) fasePassouAncora.IN = true;
     } else {
-      offset = fasePassouTerca[prefixo] ? DIA_OFFSET_POS[dia] : DIA_OFFSET_PRE[dia];
-      if (isTerca) fasePassouTerca[prefixo] = true;
+      offset = fasePassouAncora[prefixo] ? DIA_OFFSET_POS[dia] : DIA_OFFSET_PRE[dia];
+      if (isDiaAncora) fasePassouAncora[prefixo] = true;
     }
 
     if (offset === undefined) {
@@ -647,6 +661,16 @@ export async function lerConfigUrl(releaseId) { const c = await lerConfig(releas
 // Aceita uma URL (string) ou um array de URLs. No caso de array, as mensagens
 // de todas as páginas são concatenadas na mesma sequência (útil pro modo livre
 // quando o usuário divide as fases em vários Notions).
+const NOMES_DIA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Descobre o nome (PT) do dia da semana de uma data "YYYY-MM-DD".
+function diaSemanaDoISO(dataISO) {
+  if (!dataISO) return null;
+  const [y, m, d] = dataISO.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return NOMES_DIA[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
 export async function sincronizarComNotion(urlOrIds, releaseId) {
   const urls = Array.isArray(urlOrIds) ? urlOrIds.filter(Boolean) : [urlOrIds];
   if (!urls.length) throw new Error('Nenhuma URL do Notion informada');
@@ -655,10 +679,15 @@ export async function sincronizarComNotion(urlOrIds, releaseId) {
   const cacheAtual = await lerCache(releaseId);
   const manuais = (cacheAtual?.mensagens || []).filter((m) => m.origem === 'manual');
 
+  // Dia-âncora = dia da semana real da aula (config da campanha), não fixo em terça.
+  const cfg = await lerConfig(releaseId);
+  const dataWebinario = cfg?.dataReferencia || cfg?.dataWebinario || null;
+  const diaAncora = diaSemanaDoISO(dataWebinario) || 'Terça';
+
   const todasMensagens = [];
   const todosIgnorados = [];
   for (const url of urls) {
-    const { mensagens, ignorados } = await importarSequenciaDoNotion(url);
+    const { mensagens, ignorados } = await importarSequenciaDoNotion(url, diaAncora);
     mensagens.forEach((m) => { m.sourceUrl = url; });
     todasMensagens.push(...mensagens);
     todosIgnorados.push(...ignorados.map((i) => ({ ...i, sourceUrl: url })));
