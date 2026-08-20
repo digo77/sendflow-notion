@@ -497,9 +497,10 @@ export async function importarSequenciaDoNotion(urlOrId, diaAncora) {
           await processarConteudo(k, atual);
         }
       }
-    } else if (tipo === 'quote') {
-      // Quote no top-level pode ser:
-      //   1. RN/DC standalone: "🔄 RN · Dom 09h → label"
+    } else if (tipo === 'quote' || tipo === 'paragraph') {
+      // Quote/parágrafo no top-level pode ser:
+      //   1. RN/DC standalone: "🔄 RN · Dom 09h → label" (ex: lista simples de
+      //      trocas de nome, sem toggle — cada linha é um parágrafo comum)
       //   2. Continuação de uma ação corrente (heading_2 com filhos no mesmo nível)
       const texto = await blockTextRecursive(block);
       const semEmoji = texto.replace(/^[^\w]+/, '').trim();
