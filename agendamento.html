@@ -261,6 +261,7 @@ let _pendentesIds = [];  // IDs do modal "Agendar tudo" — evita JSON inline em
 let agendadosCache = []; // do /api/wz/agendados
 let filtroAtual = 'all';
 let selecionados = new Set(); // IDs marcados pra agendamento em lote
+let faltaData = false; // true quando a sequência tem itens de data relativa e falta preencher a data do evento
 
 // ─── Load campaigns ────────────────────────────────────────────────────
 // Junta TODAS as campanhas (Notion, via /api/campanhas) com a config salva
@@ -396,12 +397,17 @@ async function recarregarItens(){
   const qs = new URLSearchParams();
   if (data) { qs.set('dataReferencia', data); qs.set('dataWebinario', data); }
   if (ridAtual) qs.set('releaseId', ridAtual);
+  faltaData = false;
   try {
     itens = await api('/api/wz/preview?' + qs.toString());
     if (!Array.isArray(itens)) itens = [];
   } catch (e) {
     itens = [];
-    if (e.message && !/dataReferencia obrigat/.test(e.message)) toast('⚠️ '+e.message);
+    if (e.message && /dataReferencia obrigat/.test(e.message)) {
+      faltaData = true;
+    } else if (e.message) {
+      toast('⚠️ '+e.message);
+    }
   }
   // Agendados (todos os status para detectar erros)
   try {
@@ -457,7 +463,9 @@ function render(){
 
   const cards = $('cards');
   if (!lista.length){
-    cards.innerHTML = `<div class="empty" style="flex:1"><span class="ico">📭</span>Nenhuma mensagem nesse filtro.<br>Sincronize do Notion ou crie manualmente com os botões acima.</div>`;
+    cards.innerHTML = faltaData
+      ? `<div class="empty" style="flex:1"><span class="ico">📅</span><strong>Falta preencher a Data/hora do evento</strong> (acima, painel 1).<br>Essa campanha tem mensagens com dia relativo (ex: "Ter 10h") — sem a data da aula não dá pra calcular quando enviar.</div>`
+      : `<div class="empty" style="flex:1"><span class="ico">📭</span>Nenhuma mensagem nesse filtro.<br>Sincronize do Notion ou crie manualmente com os botões acima.</div>`;
     $('btn-agendar-todas').disabled = true;
     return;
   }
