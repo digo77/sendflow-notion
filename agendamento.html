@@ -262,10 +262,36 @@ let filtroAtual = 'all';
 let selecionados = new Set(); // IDs marcados pra agendamento em lote
 
 // ─── Load campaigns ────────────────────────────────────────────────────
+// Junta TODAS as campanhas (Notion, via /api/campanhas) com a config salva
+// de cada uma (via /api/wz/campanhas) — antes só mostrava quem já tinha
+// config, escondendo o resto das campanhas existentes.
 async function carregarCampanhas(){
-  try {
-    campanhas = await api('/api/wz/campanhas');
-  } catch (e) { campanhas = []; }
+  let todas = [], configs = [];
+  try { todas = await api('/api/campanhas'); } catch (e) { todas = []; }
+  try { configs = await api('/api/wz/campanhas'); } catch (e) { configs = []; }
+  const configPorId = {};
+  configs.forEach(c => { if (c.releaseId) configPorId[c.releaseId] = c; });
+
+  campanhas = todas
+    .filter(c => c.idSendflow && (!c.status || c.status === 'ativa'))
+    .map(c => {
+      const cfg = configPorId[c.idSendflow] || {};
+      return {
+        releaseId: c.idSendflow,
+        nome: cfg.nome || c.nome,
+        nomeBase: cfg.nomeBase || '',
+        notionUrl: cfg.notionUrl || null,
+        notionUrls: cfg.notionUrls || (cfg.notionUrl ? [cfg.notionUrl] : []),
+        horaWebinario: cfg.horaWebinario ?? null,
+        horaEvento: cfg.horaEvento ?? cfg.horaWebinario ?? null,
+        dataReferencia: cfg.dataReferencia || cfg.dataWebinario || null,
+        dataWebinario: cfg.dataWebinario || null,
+        syncedAt: cfg.syncedAt || null,
+        totalMensagens: cfg.totalMensagens || 0,
+        modoLivre: cfg.modoLivre || false,
+      };
+    });
+
   const sel = $('sel-camp');
   if (!campanhas.length){
     sel.innerHTML = '<option value="">— sem campanha (cache padrão) —</option>';
