@@ -378,6 +378,11 @@ $('btn-sync').addEventListener('click', async () => {
   btn.disabled = false; btn.textContent = '🔄 Sincronizar do Notion';
 });
 
+// Digitar a data/hora já atualiza a prévia na hora (sem precisar salvar antes) —
+// "Salvar configuração" só persiste pra próxima visita, não é obrigatório pra ver a lista.
+$('in-data').addEventListener('change', recarregarItens);
+$('in-hora').addEventListener('change', recarregarItens);
+
 $('btn-salvar-cfg').addEventListener('click', async () => {
   const data = $('in-data').value || null;
   const hora = $('in-hora').value;
