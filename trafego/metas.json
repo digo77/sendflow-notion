@@ -1,0 +1,81 @@
+{
+  "_comentario": "Metas e regras da otimização de tráfego. Este arquivo é a única fonte de verdade: o motor de regras (trafego/regras.js) e o cérebro diário (trafego/cerebro.js) leem daqui. Valores em BRL.",
+
+  "janela_dias": 7,
+  "min_dias_para_decidir": 3,
+
+  "lancamento": {
+    "cpl_alvo": 3.0,
+    "cpl_qualificado_alvo": 6.0,
+    "score_minimo_qualificado": 60,
+    "multiplo_spend_para_matar": 3,
+    "tolerancia_cpl": 1.5,
+    "ultimos_dias_sem_teste": 3
+  },
+
+  "perpetuo": {
+    "roas_minimo": 1.8,
+    "roas_escala": 2.0,
+    "roas_escala_forte": 2.5,
+    "multiplo_cpa_para_matar": 3,
+    "taxa_plataforma": 0.099,
+    "imposto": 0.06
+  },
+
+  "fadiga": {
+    "frequencia_maxima_frio": 3.0,
+    "queda_ctr_pct": 30,
+    "alta_cpm_pct": 40
+  },
+
+  "guardrails": {
+    "max_variacao_budget_pct": 30,
+    "max_variacao_budget_pct_escala_forte": 50,
+    "min_horas_entre_escalas": 48,
+    "max_pausas_por_dia_por_conta": 3,
+    "nunca_mexer_em_aprendizado": true,
+    "modo_sombra": true,
+    "acoes_autonomas": ["pausar_ad_sem_resultado", "alerta"],
+    "acoes_com_aprovacao": ["pausar_adset", "pausar_campanha", "escalar", "reduzir", "criar_ad", "ativar_ad"]
+  },
+
+  "pesquisa": {
+    "_comentario": "Pontuação da pesquisa de leads. Cada pergunta tem um peso e cada resposta um valor de 0 a 100. score = soma(peso * valor) / soma(pesos). Chaves em minúsculo, sem acento. Ajuste conforme a pesquisa real.",
+    "perguntas": {
+      "renda": {
+        "peso": 3,
+        "respostas": { "ate 2 mil": 10, "2 a 5 mil": 50, "5 a 10 mil": 85, "acima de 10 mil": 100 }
+      },
+      "momento": {
+        "peso": 3,
+        "respostas": { "so curiosidade": 5, "pensando em comecar": 40, "ja faco e quero crescer": 90, "ja vendo e quero escalar": 100 }
+      },
+      "urgencia": {
+        "peso": 2,
+        "respostas": { "sem pressa": 10, "nos proximos meses": 50, "agora": 100 }
+      },
+      "investimento": {
+        "peso": 3,
+        "respostas": { "nao investiria": 0, "ate 100": 30, "ate 500": 70, "acima de 500": 100 }
+      }
+    },
+    "bonus": {
+      "entrou_no_grupo": 10,
+      "ficou_24h": 10,
+      "clicou_link": 10,
+      "compareceu_aula": 25,
+      "saiu_do_grupo": -40
+    }
+  },
+
+  "clientes": {
+    "_comentario": "Um bloco por conta de anúncios. tipo = lancamento | perpetuo. Sobrescreva qualquer meta aqui.",
+    "exemplo": {
+      "nome": "Exemplo",
+      "meta_ad_account_id": "act_000000000000000",
+      "tipo": "perpetuo",
+      "ticket_medio": 497,
+      "ativo": false
+    }
+  }
+}

@@ -7,9 +7,13 @@
   "scripts": {
     "start": "node index.js",
     "check-env": "node check-env.js",
-    "backup": "node -e \"import('./backup.js').then(m => m.runBackup())\""
+    "backup": "node -e \"import('./backup.js').then(m => m.runBackup())\"",
+    "test": "node --test trafego/regras.test.js trafego/leads.test.js",
+    "trafego:ciclo": "node -e \"import('./trafego/ciclo.js').then(m=>m.cicloHorario()).then(r=>console.log(JSON.stringify(r,null,2)))\"",
+    "trafego:relatorio": "node -e \"import('./trafego/ciclo.js').then(m=>m.cicloDiario({enviar:false})).then(r=>console.log(JSON.stringify(r,null,2)))\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.125.0",
     "@notionhq/client": "^2.2.0",
     "axios": "^1.7.0",
     "dotenv": "^16.4.0",

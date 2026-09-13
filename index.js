@@ -49,6 +49,11 @@ import { validarSequencia } from './wz-validar.js';
 import { listarHistorico } from './wz-historico.js';
 import { agendarAcoes, listarAgendados, executarPendentes, cancelarAgendado, forcarExecucao, retentarAgendado, lerBloqueio } from './wz-agendador.js';
 import { testarConexao as testarSwitchy, listarLinks as listarLinksSwitchy, atualizarDestinoLink } from './switchy.js';
+import { cicloHorario as trafegoCicloHorario, cicloDiario as trafegoCicloDiario, executarAcaoTrafego, lerMetas as lerMetasTrafego, ultimaAnalise as trafegoUltimaAnalise, relayCAPI } from './trafego/ciclo.js';
+import { resolverRespostaTrafego, listarPendentesTrafego, pendentesTrafego } from './trafego/aprovacao.js';
+import * as trafegoLeads from './trafego/leads.js';
+import * as trafegoEstado from './trafego/estado.js';
+import { testarConexao as testarMeta } from './trafego/meta.js';
 import {
   lerEverWebinarios,
   lerEverWebinario,
@@ -144,7 +149,9 @@ function requireDashAuth(req, res, next) {
   const rotasPublicas = ['/webhook', '/health', '/sala', '/inscrever', '/login', '/api/login'];
   const isEwPublic = (req.path.startsWith('/api/everwebinar/') && req.path.endsWith('/public'))
     || req.path.match(/^\/api\/everwebinar\/[^/]+\/registrar$/);
-  if (rotasPublicas.includes(req.path) || req.path.startsWith('/img/') || isEwPublic) {
+  // Entradas de tráfego chamadas por páginas e webhooks externos (protegidas por TRAFEGO_WEBHOOK_SECRET, se definido)
+  const isTrafegoPublic = req.method === 'POST' && ['/api/trafego/lead', '/api/trafego/pesquisa', '/api/trafego/evento', '/api/trafego/compra'].includes(req.path);
+  if (rotasPublicas.includes(req.path) || req.path.startsWith('/img/') || isEwPublic || isTrafegoPublic) {
     return next();
   }
 
@@ -196,6 +203,18 @@ app.post('/webhook', verificarSecret, async (req, res) => {
   try {
     const texto = req.body?.message?.text || req.body?.texto || '';
     console.log(`[Webhook] Recebido: "${texto}"`);
+    // Aprovações de tráfego (ids começam com T) têm prioridade sobre agendamentos
+    const trafego = resolverRespostaTrafego(texto);
+    if (trafego) {
+      if (trafego.acao === 'sim') {
+        console.log(`[Webhook] Tráfego aprovado: ${trafego.dados.tipo} ${trafego.dados.alvo?.nome} [${trafego.id}]`);
+        const exec = await executarAcaoTrafego(trafego.dados);
+        await enviarMensagemDireta(process.env.SENDFLOW_NUMBER, exec.ok ? `✅ ${trafego.id} executado.` : `❌ ${trafego.id} falhou: ${exec.erro}`).catch(() => {});
+        return res.json({ ok: true, acao: 'executado', resultado: exec });
+      }
+      await trafegoEstado.registrar({ tipo: 'recusado', acao: trafego.dados.tipo, alvo: trafego.dados.alvo, motivo: trafego.dados.motivo, cliente: trafego.dados.cliente?.nome });
+      return res.json({ ok: true, acao: 'descartado' });
+    }
     const resultado = resolverResposta(texto);
     if (!resultado) {
       return res.json({ ok: true, acao: 'ignorado', motivo: 'formato não reconhecido' });
@@ -1353,6 +1372,127 @@ app.get('/', (_req, res) => {
   res.sendFile(join(__dirname, 'dashboard.html'));
 });
 
+// ─── Tráfego: otimização autônoma de Meta Ads ───
+
+// Entradas públicas (página de captação, pesquisa, webhook de compra). Se TRAFEGO_WEBHOOK_SECRET
+// estiver definido, exige o header x-trafego-secret ou ?secret= igual.
+function verificarSecretTrafego(req, res, next) {
+  const esperado = process.env.TRAFEGO_WEBHOOK_SECRET;
+  if (!esperado) return next();
+  const recebido = req.headers['x-trafego-secret'] || req.query.secret;
+  if (recebido !== esperado) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+}
+
+// Lead novo vindo da página: { telefone, nome, email, ad_id|utm_content, fbclid, fbp, cliente, respostas? }
+app.post('/api/trafego/lead', verificarSecretTrafego, async (req, res) => {
+  try {
+    const metas = await lerMetasTrafego();
+    const lead = await trafegoLeads.registrarLead({ ...req.body, ip: req.headers['x-forwarded-for']?.split(',')[0] || req.ip, user_agent: req.headers['user-agent'] }, metas);
+    res.json({ ok: true, id: lead.id, score: lead.score, qualificado: lead.qualificado });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Pesquisa de qualificação: { telefone|email, respostas: { pergunta: resposta } }
+app.post('/api/trafego/pesquisa', verificarSecretTrafego, async (req, res) => {
+  try {
+    const metas = await lerMetasTrafego();
+    const lead = await trafegoLeads.registrarLead(req.body, metas);
+    res.json({ ok: true, id: lead.id, score: lead.score, qualificado: lead.qualificado, respostas_desconhecidas: lead.respostas_desconhecidas || [] });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Evento de comportamento: { telefone|email, evento: entrou_no_grupo|ficou_24h|clicou_link|compareceu_aula|saiu_do_grupo }
+app.post('/api/trafego/evento', verificarSecretTrafego, async (req, res) => {
+  try {
+    const metas = await lerMetasTrafego();
+    const lead = await trafegoLeads.marcarEvento(req.body.telefone || req.body.email, req.body.evento, metas, { email: req.body.email, cliente: req.body.cliente });
+    res.json({ ok: true, id: lead.id, score: lead.score, qualificado: lead.qualificado });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Compra (webhook Hotmart/Utmify ou manual). Aceita o payload da Hotmart v2 ou { telefone, email, valor, ad_id|sck }.
+app.post('/api/trafego/compra', verificarSecretTrafego, async (req, res) => {
+  try {
+    const metas = await lerMetasTrafego();
+    const b = req.body || {};
+    const buyer = b.data?.buyer || {};
+    const purchase = b.data?.purchase || {};
+    const tracking = b.data?.purchase?.origin || b.data?.tracking || {};
+    const sck = tracking.sck || b.sck || '';
+    const adIdDoSck = String(sck).split('|').find((s) => /^\d{6,}$/.test(s));
+    const dados = {
+      telefone: buyer.checkout_phone || buyer.phone || b.telefone,
+      email: buyer.email || b.email,
+      nome: buyer.name || b.nome,
+      valor: purchase.price?.value ?? purchase.full_price?.value ?? b.valor,
+      moeda: purchase.price?.currency_value || b.moeda || 'BRL',
+      pedido: purchase.transaction || b.pedido,
+      quando: purchase.order_date ? new Date(purchase.order_date).toISOString() : b.quando,
+    };
+    const status = purchase.status || b.status;
+    if (status && !['APPROVED', 'COMPLETE', 'COMPLETED', 'aprovado', 'approved', 'paid'].includes(status)) {
+      return res.json({ ok: true, ignorado: true, motivo: `status ${status}` });
+    }
+    const lead = await trafegoLeads.registrarCompra(dados, metas);
+    // Atribuição direta quando a compra trouxe o id do anúncio (sck/utm_content) e o lead não tinha origem.
+    const adId = b.ad_id || adIdDoSck || tracking.utm_content;
+    if (adId && !lead.ad_id) await trafegoLeads.registrarLead({ telefone: dados.telefone, email: dados.email, ad_id: String(adId), cliente: b.cliente }, metas);
+    res.json({ ok: true, id: lead.id, atribuido: !!(lead.ad_id || adId) });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Painel
+app.get('/api/trafego/estado', async (_req, res) => {
+  try {
+    const st = await trafegoEstado.lerEstado();
+    const metas = await lerMetasTrafego();
+    const analises = [...trafegoUltimaAnalise.values()].map((a) => ({
+      cliente: a.cliente.nome, em: a.em, alocacao: a.analise.alocacao,
+      vereditos: a.analise.vereditos.map((v) => ({ id: v.id, nome: v.nome, adset: v.adset_name, veredito: v.veredito, motivos: v.motivos, fadiga: v.fadiga, spend: v.spend, derivadas: v.derivadas, leads: v.leads, leads_qualificados: v.leads_qualificados, receita: v.receita, compras: v.compras, dias: v.dias })),
+      plano: a.analise.plano,
+    }));
+    res.json({ ...st, modo_sombra: metas.guardrails.modo_sombra, meta_configurado: !!process.env.META_ACCESS_TOKEN, capi_configurada: !!process.env.META_PIXEL_ID, ia_configurada: !!process.env.ANTHROPIC_API_KEY, pendentes: listarPendentesTrafego(), analises });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/trafego/leads', async (req, res) => {
+  try { res.json({ resumo: await trafegoLeads.resumoLeads({ desde: req.query.desde }), leads: await trafegoLeads.listarLeads({ limite: Number(req.query.limite) || 200, cliente: req.query.cliente }) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/trafego/ciclo', async (_req, res) => {
+  try { res.json(await trafegoCicloHorario()); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/trafego/relatorio', async (req, res) => {
+  try { res.json(await trafegoCicloDiario({ enviar: req.body?.enviar !== false })); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/trafego/capi', async (_req, res) => {
+  try { res.json(await relayCAPI()); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/trafego/aprovar/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id).toUpperCase();
+    const dados = pendentesTrafego.get(id);
+    if (!dados) return res.status(404).json({ error: 'Aprovação não encontrada ou expirada' });
+    pendentesTrafego.delete(id);
+    if (req.body?.acao === 'sim') return res.json({ ok: true, acao: 'executado', resultado: await executarAcaoTrafego(dados) });
+    await trafegoEstado.registrar({ tipo: 'recusado', acao: dados.tipo, alvo: dados.alvo, motivo: dados.motivo, cliente: dados.cliente?.nome, origem: 'dashboard' });
+    res.json({ ok: true, acao: 'descartado' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/trafego/pausa-geral', async (req, res) => {
+  try { res.json({ pausado_geral: await trafegoEstado.setPausaGeral(!!req.body?.pausar) }); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/trafego/testar-meta', async (_req, res) => {
+  try { res.json(await testarMeta()); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── Iniciar servidor ───
 app.listen(PORT, () => {
   console.log(`\n[Sendflow-Notion] Dashboard: http://localhost:${PORT}`);
@@ -1440,3 +1580,19 @@ listarCampanhasSendflow()
         console.error('[Primeiro ciclo] Erro:', err.message);
       });
   });
+
+// ─── Cron: tráfego — coleta, regras, CAPI e ações autônomas de hora em hora ───
+cron.schedule('7 * * * *', async () => {
+  try {
+    const r = await trafegoCicloHorario();
+    console.log(`[Cron Tráfego] ${r.clientes.length} conta(s), CAPI: ${JSON.stringify(r.capi)}`);
+  } catch (err) { console.error('[Cron Tráfego] Erro:', err.message); }
+});
+
+// ─── Cron: tráfego — cérebro diário + resumo em dinheiro + pedidos de aprovação (08:00 SP) ───
+cron.schedule(process.env.TRAFEGO_HORA_RELATORIO || '0 8 * * *', async () => {
+  try {
+    const r = await trafegoCicloDiario();
+    console.log(`[Cron Tráfego] Relatório diário enviado para ${r.length} conta(s)`);
+  } catch (err) { console.error('[Cron Tráfego] Erro no diário:', err.message); }
+}, { timezone: 'America/Sao_Paulo' });

@@ -348,3 +348,64 @@ Webhook ← Sendflow → Executa ação → Atualiza Notion
 | `executado` | Ação executada com sucesso |
 | `cancelado` | Cancelado pelo usuário ou expirado (60min) |
 | `erro` | Falha na execução |
+
+## 8. Tráfego — otimização autônoma de Meta Ads
+
+Módulo em `trafego/`. Roda dentro deste app, sem n8n. Lê métricas do Meta, cruza com o funil real
+(leads da pesquisa, entrada nos grupos, compras) e decide o que matar, escalar, ajustar ou observar.
+
+### O que faz
+
+| Quando | O quê |
+|---|---|
+| A cada hora (`:07`) | Puxa insights por anúncio (7 dias + 7 anteriores), budget e fase de aprendizado dos conjuntos, cruza com leads/compras por anúncio, aplica as regras de `trafego/metas.json`, envia leads qualificados e compras para a Conversions API, executa ações autônomas (só fora do modo sombra). |
+| Todo dia às 08:00 (SP) | Cérebro (Claude) lê os vereditos e manda no seu WhatsApp o resumo em dinheiro (quanto queima, quanto deixa na mesa), até 3 ações do dia e propostas de anúncios novos. Cada ação que precisa de aprovação chega como pergunta: responda `SIM T1A2B` ou `NAO T1A2B`. |
+
+### Metas (edite `trafego/metas.json`)
+
+- **Lançamento:** CPL alvo R$3, CPL qualificado alvo R$6, lead é qualificado com score ≥ 60 pela pesquisa.
+- **Perpétuo:** ROAS mínimo 1.8, escala a partir de 2.0 (forte a partir de 2.5, duplicando o conjunto).
+- **Guardrails:** degraus de 30% (50% em escala forte), 48h entre escalas, máx. 3 pausas/dia por conta, nunca mexe em conjunto em aprendizado. `modo_sombra: true` no início: nada é executado sem `SIM`.
+- **Clientes:** um bloco por conta em `clientes`, com `meta_ad_account_id` (`act_...`), `tipo` (`lancamento`|`perpetuo`), `ticket_medio`, `ativo: true`.
+
+Criar anúncio novo **sempre** pede aprovação e o anúncio nasce pausado.
+
+### Etiqueta por anúncio (obrigatório)
+
+Todos os anúncios usam a mesma URL com o parâmetro dinâmico do Meta: `utm_content={{ad.id}}`.
+A página de captação manda o lead para cá com esse valor. Sem isso não há atribuição.
+
+### Endpoints públicos (protegidos por `TRAFEGO_WEBHOOK_SECRET`, header `x-trafego-secret` ou `?secret=`)
+
+```
+POST /api/trafego/lead      { telefone, nome, email, utm_content|ad_id, fbclid, fbp, cliente, respostas? }
+POST /api/trafego/pesquisa  { telefone|email, respostas: { renda: "...", momento: "...", ... } }
+POST /api/trafego/evento    { telefone|email, evento: entrou_no_grupo|ficou_24h|clicou_link|compareceu_aula|saiu_do_grupo }
+POST /api/trafego/compra    payload da Hotmart (v2) ou { telefone, email, valor, ad_id|sck }
+```
+
+As perguntas e pesos da pesquisa ficam em `metas.json` → `pesquisa`. Ajuste as chaves para bater com o formulário real.
+
+### Endpoints do painel (autenticados)
+
+```
+GET  /api/trafego/estado          estado, vereditos da última análise, pendentes, log
+GET  /api/trafego/leads           resumo e últimos leads
+POST /api/trafego/ciclo           roda o ciclo horário agora
+POST /api/trafego/relatorio       roda o cérebro e o resumo agora ({ "enviar": false } só devolve)
+POST /api/trafego/capi            reenvia eventos pendentes à Conversions API
+POST /api/trafego/aprovar/:id     { "acao": "sim" | "nao" }
+POST /api/trafego/pausa-geral     { "pausar": true | false }
+GET  /api/trafego/testar-meta     valida o token e lista as contas
+```
+
+### Env
+
+`META_ACCESS_TOKEN`, `META_PIXEL_ID`, `ANTHROPIC_API_KEY`, `TRAFEGO_DRY_RUN=1` (recomendado na primeira semana), `TRAFEGO_WEBHOOK_SECRET`, `TRAFEGO_HORA_RELATORIO`.
+
+### Ordem de ativação
+
+1. `npm test` verde. Configure o token do Meta e rode `GET /api/trafego/testar-meta`.
+2. Preencha `clientes` em `metas.json`. Deixe `modo_sombra: true` e `TRAFEGO_DRY_RUN=1`.
+3. Coloque `utm_content={{ad.id}}` nos anúncios novos e aponte a página de captação e a pesquisa para os endpoints acima.
+4. Uma semana lendo o resumo diário. Quando confiar, `modo_sombra: false` e `TRAFEGO_DRY_RUN=0`: pausar anúncio sem resultado passa a ser automático; o resto continua pedindo `SIM`.
