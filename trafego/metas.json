@@ -69,13 +69,44 @@
   },
 
   "clientes": {
-    "_comentario": "Um bloco por conta de anúncios. tipo = lancamento | perpetuo. Sobrescreva qualquer meta aqui.",
-    "exemplo": {
-      "nome": "Exemplo",
-      "meta_ad_account_id": "act_000000000000000",
+    "_comentario": "Um bloco por conta de anúncios. tipo = lancamento | perpetuo. ticket_medio em BRL (null = regras de CPA desligadas, só ROAS). Sobrescreva qualquer meta por cliente com blocos 'lancamento' ou 'perpetuo'.",
+    "nativepxl": {
+      "nome": "NativePXL",
+      "meta_ad_account_id": "act_1942116453360700",
+      "tipo": "lancamento",
+      "ticket_medio": null,
+      "ativo": true,
+      "_obs": "Lead gen (quiz). Métrica: custo por lead qualificado."
+    },
+    "lucas_lino_2": {
+      "nome": "Lucas Lino #2",
+      "meta_ad_account_id": "act_433789951711315",
       "tipo": "perpetuo",
-      "ticket_medio": 497,
-      "ativo": false
+      "ticket_medio": null,
+      "ativo": true
+    },
+    "lucas_lino_3": {
+      "nome": "Lucas Lino #3",
+      "meta_ad_account_id": "act_440215234142700",
+      "tipo": "perpetuo",
+      "ticket_medio": null,
+      "ativo": true
+    },
+    "aureo_ca1": {
+      "nome": "Chef Áureo CA#1",
+      "meta_ad_account_id": "act_292920555123408",
+      "tipo": "perpetuo",
+      "ticket_medio": null,
+      "ativo": true,
+      "_obs": "Se a conta estiver em captação de webinar, troque tipo para lancamento."
+    },
+    "brigadeirinha_bidcap": {
+      "nome": "Brigadeirinha BIDCAP",
+      "meta_ad_account_id": "act_2541622449641772",
+      "tipo": "perpetuo",
+      "ticket_medio": null,
+      "ativo": true,
+      "_obs": "Conta com bid cap: ao escalar, revise o cap junto com o budget."
     }
   }
 }
