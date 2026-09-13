@@ -88,6 +88,30 @@ try {
   }
 }
 
+// ─── Tráfego (opcional): Meta Marketing API, Conversions API e Anthropic ───
+console.log('');
+if (!process.env.META_ACCESS_TOKEN) {
+  check('META_ACCESS_TOKEN', true, 'ausente — módulo de tráfego só com funil de leads (sem Meta)');
+} else {
+  try {
+    const { testarConexao } = await import('./trafego/meta.js');
+    const { usuario, contas } = await testarConexao();
+    check('Meta API', true, `token de "${usuario.name}" — ${contas.length} conta(s): ${contas.map((c) => `${c.name} (${c.id})`).join(', ')}`);
+    const { lerMetas, clientesAtivos } = await import('./trafego/ciclo.js');
+    const ativos = clientesAtivos(await lerMetas());
+    for (const c of ativos) {
+      const ok = contas.some((k) => k.id === c.meta_ad_account_id);
+      check(`cliente "${c.nome}"`, ok, ok ? `${c.tipo}, conta ${c.meta_ad_account_id}` : `conta ${c.meta_ad_account_id} não acessível com este token`);
+    }
+    if (!ativos.length) check('trafego/metas.json', true, 'nenhum cliente com ativo: true — o ciclo não analisa nada até preencher');
+  } catch (err) {
+    check('Meta API', false, err.response?.data?.error?.message || err.message);
+  }
+  check('META_PIXEL_ID', !!process.env.META_PIXEL_ID, process.env.META_PIXEL_ID ? 'ok' : 'ausente — leads qualificados e compras não voltam para o Meta');
+}
+check('ANTHROPIC_API_KEY', true, process.env.ANTHROPIC_API_KEY ? 'ok — cérebro diário ativo' : 'ausente — resumo diário sai só pelas regras');
+check('TRAFEGO_DRY_RUN', true, process.env.TRAFEGO_DRY_RUN === '1' ? 'ligado (nada é escrito no Meta)' : 'DESLIGADO — ações aprovadas serão executadas de verdade');
+
 console.log('');
 if (allOk) {
   console.log('\x1b[32mTudo certo! Pode iniciar com: node index.js\x1b[0m\n');
